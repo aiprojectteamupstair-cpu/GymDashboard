@@ -1,0 +1,52 @@
+import { cloneElement, useEffect, useId, useRef } from 'react';
+import { X, Search, ArrowUpRight, Users, CheckCircle2 } from 'lucide-react';
+
+export function Button({ children, variant = 'secondary', className = '', ...props }) {
+  return <button className={`button button-${variant} ${className}`} {...props}>{children}</button>;
+}
+
+export function Avatar({ member, large = false }) {
+  const letters = member.full_name.split(/\s+/).slice(0, 2).map(s => s[0]).join('');
+  return <span className={`avatar avatar-${member.category_id} ${large ? 'avatar-large' : ''}`} aria-hidden="true">{letters}</span>;
+}
+
+export function Badge({ children, type = '' }) {
+  return <span className={`badge badge-${(type || String(children)).toLowerCase().replaceAll(' ', '-')}`}><span className="badge-dot" />{children}</span>;
+}
+
+export function SearchField({ value, onChange, placeholder = 'Search members...', label = 'Search members', autoFocus = false }) {
+  return <div className="search-field"><Search size={18} /><input aria-label={label} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} autoFocus={autoFocus} />{value && <button aria-label="Clear search" onClick={() => onChange('')}><X size={16} /></button>}</div>;
+}
+
+export function Panel({ title, subtitle, action, children, className = '' }) {
+  return <section className={`panel ${className}`}><div className="panel-heading"><div><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</div>{action}</div>{children}</section>;
+}
+
+export function EmptyState({ title = 'No members found', message = 'Try a different name, member code or filter.', action }) {
+  return <div className="empty-state"><div className="empty-icon"><Users size={24} /></div><h3>{title}</h3><p>{message}</p>{action}</div>;
+}
+
+export function StatCard({ label, value, description, icon: Icon, accent = false }) {
+  return <section className={`stat-card ${accent ? 'stat-accent' : ''}`}><div className="stat-top"><span>{label}</span><span className="stat-icon"><Icon size={19} /></span></div><strong>{value}</strong><div className="stat-bottom"><span>{description}</span>{accent ? <CheckCircle2 size={16} /> : <ArrowUpRight size={16} />}</div></section>;
+}
+
+export function Dialog({ title, subtitle, onClose, children, wide = false }) {
+  const ref = useRef(null);
+  const titleId = useId();
+  useEffect(() => {
+    const element = ref.current;
+    element.showModal();
+    return () => element.close();
+  }, []);
+  return <dialog ref={ref} className={`app-dialog ${wide ? 'dialog-wide' : ''}`} aria-labelledby={titleId} onCancel={e => { e.preventDefault(); onClose(); }}>
+    <div className="dialog-heading"><div><h2 id={titleId}>{title}</h2>{subtitle && <p>{subtitle}</p>}</div><button className="icon-button" onClick={onClose} aria-label="Close dialog"><X size={21} /></button></div>
+    {children}
+  </dialog>;
+}
+
+export function Field({ label, children, hint, className = '' }) {
+  const generatedId = useId();
+  const inputId = children.props.id || generatedId;
+  const hintId = `${inputId}-hint`;
+  return <div className={`field ${className}`}><label htmlFor={inputId}>{label}</label>{cloneElement(children, { id: inputId, ...(hint ? { 'aria-describedby': hintId } : {}) })}{hint && <small id={hintId}>{hint}</small>}</div>;
+}

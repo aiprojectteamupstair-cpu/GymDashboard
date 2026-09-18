@@ -1,9 +1,8 @@
-# Gym Active Member Dashboard
+# The Community Fitness dashboard
 
-A browser-based dashboard for daily gym attendance. Attendance data appears
-only after an administrator uploads a monthly Excel workbook. Uploaded data is
-persisted in the current browser and supports member management, analytics,
-Excel export, and role-based administrator access.
+Interactive React + Vite prototype for The Community Fitness By Strategy First Gym.
+The current UI uses fictional members and browser-local storage. Supabase is the
+planned shared database; no live project or real member import is connected yet.
 
 ## Run locally
 
@@ -12,20 +11,43 @@ npm install
 npm run dev
 ```
 
-Open the local URL shown by Vite. On first run, use:
+Open the HTTP URL shown by Vite. Opening `index.html` directly as a `file://` URL
+does not run the Vite application. No login is required in this UI prototype.
 
-- Username: `admin`
-- Password: `admin123`
+## Try the prototype
 
-Change the default password after signing in.
+- Dashboard: today arrivals, active memberships, attendance trends and expiry follow-up.
+- Members: search/filter, profiles, monthly attendance and membership history.
+- Check-in: search, confirm the person and record one demo presence per Myanmar day.
+- New/Renew: manual start date, calendar-month end date and explicit end override with a reason.
+- Analytics: attendance periods, unique visitors, category breakdown and structured Excel export.
+- Settings: review package rules and reset the fictional sample data.
 
-## Production build
+The proposed archive/restore flow preserves membership and attendance history.
+Payment method categories are recorded without amounts. Package durations and
+access rules that are not confirmed are labelled accordingly.
+
+## Checks and build
 
 ```bash
+npm test
+npm run lint
 npm run build
 npm run preview
 ```
 
-Application data and the signed-in session are stored in the current browser's
-local storage. The project does not automatically import its reference workbook;
-use the Upload Data page to add or replace a month.
+Prototype data uses the isolated `community-fitness:prototype:v1` local storage
+key. The original app remains in `src/App.jsx` and `src/exportWorkbook.js`; its
+saved data is not automatically migrated or replaced. Local storage is for UI
+review, not shared production data, authentication or database concurrency.
+
+## Project context
+
+- [Implemented prototype and next steps](docs/PROTOTYPE.md)
+- [Confirmed requirements and proposed fields](docs/PROJECT_BRIEF.md)
+- [Screen flow and proposed permissions](docs/SCREEN_FLOW.md)
+- [Eight-table Supabase model](docs/DATA_MODEL.md)
+- [Project recall and working rules](AGENTS.md)
+
+Pending policies and fields in these documents do not become confirmed business
+requirements merely because the prototype lets reviewers try them.
