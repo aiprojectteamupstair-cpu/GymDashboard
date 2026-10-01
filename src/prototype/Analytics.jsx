@@ -4,6 +4,7 @@ import { Activity, Download, Repeat2, Users, Footprints } from 'lucide-react';
 import { Button, Panel, StatCard } from './components.jsx';
 import { formatDate, shiftDays, validDate } from './domain.js';
 import { attendanceInsights, deltaLabel } from './insights.js';
+import { attendanceCoverage, initialAnalysisPeriod } from './coverage.js';
 
 const tick = { fill: 'var(--muted)', fontSize: 12 };
 const tooltip = { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 8, color: 'var(--ink)', fontSize: 14 };
@@ -13,8 +14,9 @@ function Bars({ rows, field, name, label }) {
 }
 
 export function Analytics({ data, today, onExport }) {
-  const [start, setStart] = useState(() => shiftDays(today, -30));
-  const [end, setEnd] = useState(() => shiftDays(today, -1));
+  const [start, setStart] = useState(() => initialAnalysisPeriod(data, today).start);
+  const [end, setEnd] = useState(() => initialAnalysisPeriod(data, today).end);
+  const coverage = attendanceCoverage(data);
   const [category, setCategory] = useState('all');
   const days = Math.round((Date.parse(end)-Date.parse(start))/86400000)+1;
   const valid = validDate(start) && validDate(end) && days>0 && days<=366 && end<=today;
@@ -26,6 +28,7 @@ export function Analytics({ data, today, onExport }) {
     <div className="analytics-filters"><div><strong>{formatDate(start)} – {formatDate(end)}</strong><span>Compared with {formatDate(insight.previousStart)} – {formatDate(insight.previousEnd)}</span></div><label>From<input type="date" aria-label="Analysis start date" value={start} max={end || today} onChange={e=>{setStart(e.target.value);}}/></label><label>To<input type="date" aria-label="Analysis end date" value={end} min={start} max={today} onChange={e=>{setEnd(e.target.value);}}/></label><label>Category at visit<select aria-label="Analysis category" value={category} onChange={e => {setCategory(e.target.value);}}><option value="all">All categories</option>{data.member_categories.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select></label></div>
     {!valid && <p className="form-error" role="alert">Choose valid dates in order, up to 366 days, ending no later than today.</p>}
     {valid && <>
+    <p className="scope-note">{coverage.count.toLocaleString()} attendance records available{coverage.last ? ` · ${formatDate(coverage.first)} – ${formatDate(coverage.last)}` : ''}. Only recorded visits are counted; unrecorded dates are not confirmed absences. Comparison periods may have incomplete source data.</p>
     {end === today && <p className="scope-note">Today is still in progress; comparison includes a partial day.</p>}
     <div className="stats-grid"><StatCard label="Recorded visits" value={insight.visits} description={deltaLabel(insight.visits, insight.previous.visits)} icon={Footprints} accent /><StatCard label="Unique visitors" value={insight.unique} description={deltaLabel(insight.unique, insight.previous.unique)} icon={Users} /><StatCard label="Visits per visitor" value={insight.average === null ? '—' : insight.average.toFixed(1)} description="Recorded visits ÷ unique visitors" icon={Activity} /><StatCard label="Repeat visitors" value={insight.repeatRate === null ? '—' : `${insight.repeatRate.toFixed(0)}%`} description={`${insight.repeat} of ${insight.unique} visitors came 2+ days`} icon={Repeat2} /></div>
     {!insight.visits && <div className="inline-notice">No recorded visits for this category and period. Select a different period to explore.</div>}

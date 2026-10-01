@@ -1,4 +1,5 @@
-import { cloneElement, useEffect, useId, useRef } from 'react';
+import { cloneElement, useContext, useEffect, useId, useRef } from 'react';
+import { MutationContext } from './mutationContext.js';
 import { X, Search, ArrowUpRight, Users, CheckCircle2 } from 'lucide-react';
 
 export function Button({ children, variant = 'secondary', className = '', ...props }) {
@@ -32,6 +33,7 @@ export function StatCard({ label, value, description, icon: Icon, accent = false
 }
 
 export function Dialog({ title, subtitle, onClose, children, wide = false }) {
+  const mutation = useContext(MutationContext);
   const ref = useRef(null);
   const titleId = useId();
   useEffect(() => {
@@ -53,9 +55,11 @@ export function Dialog({ title, subtitle, onClose, children, wide = false }) {
       window.scrollTo({ top: scrollY, behavior: 'instant' });
     };
   }, []);
-  return <dialog ref={ref} className={`app-dialog ${wide ? 'dialog-wide' : ''}`} aria-labelledby={titleId} onCancel={e => { e.preventDefault(); onClose(); }}>
-    <div className="dialog-heading"><div><h2 id={titleId}>{title}</h2>{subtitle && <p>{subtitle}</p>}</div><button className="icon-button" onClick={onClose} aria-label="Close dialog"><X size={21} /></button></div>
-    {children}
+  return <dialog ref={ref} className={`app-dialog ${wide ? 'dialog-wide' : ''}`} aria-labelledby={titleId} aria-busy={mutation.busy} onCancel={e => { e.preventDefault(); if (!mutation.busy) onClose(); }}>
+    <div className="dialog-heading"><div><h2 id={titleId}>{title}</h2>{subtitle && <p>{subtitle}</p>}</div><button disabled={mutation.busy} className="icon-button" onClick={onClose} aria-label="Close dialog"><X size={21} /></button></div>
+    {mutation.error && <p role="alert" className="form-error">{mutation.error}</p>}
+    {mutation.busy && <p role="status" className="soft-note">Saving securely… Please keep this dialog open.</p>}
+    <fieldset disabled={mutation.busy} style={{ display: 'contents' }}>{children}</fieldset>
   </dialog>;
 }
 

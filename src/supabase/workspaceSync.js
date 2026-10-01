@@ -21,7 +21,7 @@ export function createWorkspaceSync(load, publish, clock = Date.now) {
     invalidate() { epoch++; pending = null; lastAttempt = -Infinity; },
     refresh({ force = false } = {}) {
       if (!state.owner) return Promise.resolve();
-      if (pending) return pending;
+      if (pending) return force ? pending.then(() => this.refresh({ force: true })) : pending;
       if (!force && clock() - lastAttempt < 30000) return Promise.resolve();
       lastAttempt = clock();
       const request = ++epoch, owner = state.owner;

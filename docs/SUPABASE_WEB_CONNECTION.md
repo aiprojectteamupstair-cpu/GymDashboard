@@ -1,5 +1,7 @@
 # Supabase webpage connection — 1 October 2026
 
+Latest: [connected write operations and current verification limits](LIVE_OPERATIONS_2026_10_01.md) supersede earlier read-only sections below. API network reachability remains unresolved.
+
 ## Latest: attendance and Admin creation
 
 Historical attendance is now live (4,349 records through September 16); see [import reconciliation](ATTENDANCE_IMPORT_2026_10_01.md). Current member count is 423 following explicitly authorized duplicate deletion.

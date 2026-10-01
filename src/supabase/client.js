@@ -9,6 +9,6 @@ export const supabase = createClient(
     global: { fetch: (url, options = {}) => fetch(url, {
       ...options,
       signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000),
-    }) },
+    }).catch(error => { throw new Error('Network connection to the Supabase project API failed. Your records have not been replaced. Check connectivity and retry.', { cause: error }); }) },
   },
 );

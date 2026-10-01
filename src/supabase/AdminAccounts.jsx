@@ -24,6 +24,7 @@ export default function AdminAccounts() {
   const [formError, setFormError] = useState('');
   const [message, setMessage] = useState('');
   const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
+  const [remove, setRemove] = useState(null);
   useEffect(() => {
     let alive = true;
     requestAccounts({ action: 'list' }).then(result => { if (alive) setAccounts(result.accounts); })
@@ -43,10 +44,18 @@ export default function AdminAccounts() {
       setMessage('Admin account created. They can sign in with their email and password.'); setLoading(true); setError(''); setRevision(value => value + 1);
     } catch (err) { setFormError(err.message); } finally { setBusy(false); }
   }
+  async function deleteAccount() {
+    setBusy(true); setFormError('');
+    try {
+      const result = await requestAccounts({ action: 'delete', id: remove.id });
+      setRemove(null); setMessage(result.warning || 'Admin account removed. Member and audit history retained.'); setRevision(value => value + 1);
+    } catch (err) { setFormError(err.message); } finally { setBusy(false); }
+  }
   return <><div className="page-heading"><h1 className="screen-title"><ShieldCheck aria-hidden="true" />Admin accounts</h1><Button variant="primary" onClick={() => { setFormError(''); setOpen(true); }}><UserPlus size={18} />Create Admin</Button></div>
     {error && <p className="error-banner" role="alert">{error} <Button onClick={() => { setLoading(true); setError(''); setRevision(value => value + 1); }}>Retry</Button></p>}
     {message && <p role="status" className="soft-note">{message}</p>}
-    <section className="panel"><div className="table-scroll"><table className="member-table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr></thead><tbody>{accounts.map(row => <tr key={row.id}><td>{row.display_name}</td><td>{row.email || 'Not linked'}</td><td>{row.role_code === 'super_admin' ? 'Super Admin' : 'Admin'}</td><td>{row.enabled ? 'Enabled' : 'Disabled'}</td></tr>)}</tbody></table></div><p className="soft-note">{loading ? 'Loading accounts…' : 'Only Super Admin can create Admin accounts. Account deletion is not enabled yet.'}</p></section>
+    <section className="panel"><div className="table-scroll"><table className="member-table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead><tbody>{accounts.map(row => <tr key={row.id}><td>{row.display_name}</td><td>{row.email || 'Not linked'}</td><td>{row.role_code === 'super_admin' ? 'Super Admin' : 'Admin'}</td><td>{row.enabled ? 'Enabled' : 'Disabled'}</td><td>{row.role_code === 'admin' && <Button onClick={() => { setFormError(''); setRemove(row); }}>Delete Admin</Button>}</td></tr>)}</tbody></table></div><p className="soft-note">{loading ? 'Loading accounts…' : 'Only Super Admin can manage Admin accounts. Member and audit history are preserved.'}</p></section>
+    {remove && <Dialog title="Delete Admin account?" onClose={() => { if (!busy) setRemove(null); }}><div className="dialog-body"><p>{remove.display_name} · {remove.email}</p><p>This revokes access and removes their sign-in. Member records and audit history remain.</p>{formError && <p role="alert" className="form-error">{formError}</p>}</div><div className="dialog-footer"><Button disabled={busy} onClick={() => setRemove(null)}>Cancel</Button><Button disabled={busy} onClick={deleteAccount}>{busy ? 'Removing…' : 'Confirm deletion'}</Button></div></Dialog>}
     {open && <Dialog title="Create Admin" onClose={close}><form onSubmit={create}><div className="dialog-body form-grid">
       <Field label="Name"><input required maxLength={120} value={form.name} onChange={event => change('name', event.target.value)} /></Field>
       <Field label="Email"><input type="email" required maxLength={254} autoComplete="off" value={form.email} onChange={event => change('email', event.target.value)} /></Field>

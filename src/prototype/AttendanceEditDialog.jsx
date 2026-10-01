@@ -7,7 +7,7 @@ export function AttendanceEditDialog({data, row, onClose, onSave}) {
   const [reason,setReason] = useState('');
   const [error,setError] = useState('');
   const member = data.members.find(m=>m.id===row.member_id);
-  const history = data.audit_events.filter(a=>a.entity_id===row.id && a.action==='attendance.time_corrected');
+  const history = data.audit_events.filter(a=>a.entity_id===row.id && ['attendance.time_corrected','attendance.time'].includes(a.action) && a.changes?.before?.checked_in_at && a.changes?.after?.checked_in_at);
   return <Dialog title="Edit check-in time" subtitle={member?.full_name || 'Attendance record'} onClose={onClose}>
     <form onSubmit={e=>{e.preventDefault();try {onSave({time,reason,expected_checked_in_at:row.checked_in_at});}catch(err){setError(err.message);}}}>
       <div className="dialog-body">

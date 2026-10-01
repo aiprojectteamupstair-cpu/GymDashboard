@@ -4,6 +4,8 @@ Last updated: 2026-10-01. Business: The Community Fitness By Strategy First Gym.
 
 ## October 1 attendance and Admin API (supersedes earlier pending notes)
 
+- Latest follow-up: [live operations](docs/LIVE_OPERATIONS_2026_10_01.md) supersedes the read-only notes below. `gym-commands` deployed for transactional member/membership/PT/check-in/time/catalogue writes; `admin-accounts` v2 adds confirmed Admin deletion with staff/audit retention. Browser direct writes remain closed. Migrations 20261001104539 and 20261001105350 are applied. 56 tests and rollback SQL/synthetic browser checks pass; real authenticated end-to-end acceptance and VPN-free route remain blocked by local API TCP timeouts. Do not claim the network issue is fixed.
+
 - Imported 4,349 historical presences: July 1,139, August 2,064, September 1,146; July 1–September 16. Explicit assumed 18:00 Myanmar timestamps are labelled and excluded from arrival-hour metrics. No absence inferred from trailing blanks. See `docs/ATTENDANCE_IMPORT_2026_10_01.md`.
 - User explicitly authorized permanent deletion of duplicate C123 and its one membership; private backup retained. C124 remains and receives 26 resolved attendance dates; no membership history merged. Current totals: 423 members, 484 memberships, 22 PT purchases, 4,349 attendance.
 - Latest observed member-info source date September 21; attendance September 16. These are observed cutoffs, not proof of complete source coverage.

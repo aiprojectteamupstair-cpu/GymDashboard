@@ -2,26 +2,33 @@ import { createEmptyData } from '../prototype/dataLifecycle.js';
 
 export const COLUMNS = {
   member_categories: 'id,code,label,prefix,digits,enabled',
-  packages: 'id,code,label,access_notes,allows_training,enabled',
+  packages: 'id,code,label,access_notes,allows_training,enabled,legacy,updated_at',
   membership_plans: 'id,label,duration_months,enabled',
-  discounts: 'id,label,percentage,enabled',
+  discounts: 'id,label,percentage,enabled,updated_at',
   members: 'id,member_code,full_name,category_id,contact_phone,student_id,date_of_birth,remark,archived_at,created_at,updated_at,record_origin',
   member_codes: 'code,member_id,category_id,retired_at',
   memberships: 'id,member_id,package_id,package_snapshot,plan_id,plan_snapshot,discount_id,discount_snapshot,member_code_snapshot,member_category_snapshot,start_date,duration_months,calculated_end_date,source_end_date,override_end_date,override_reason,voucher_reference,remark,voided_at,created_at,record_origin,transaction_kind',
   training_purchases: 'id,member_id,membership_id,service_type,sessions,duration_months,start_date,end_date,remark,voided_at,created_at,record_origin',
-  attendance: 'id,member_id,membership_id,attendance_date,checked_in_at,time_source,record_origin,member_code_snapshot,member_category_snapshot,voided_at',
-  audit_events: 'id,actor_user_id,actor_name,entity_type,entity_id,action,reason,occurred_at',
+  attendance: 'id,member_id,membership_id,attendance_date,checked_in_at,original_checked_in_at,updated_at,time_source,record_origin,member_code_snapshot,member_category_snapshot,voided_at',
+  audit_events: 'id,actor_user_id,actor_name,entity_type,entity_id,action,changes,reason,occurred_at',
 };
 
 export async function readAll(client, table, columns, pageSize = 500) {
   const rows = [];
-  for (let from = 0; ; from += pageSize) {
-    const { data, error } = await client.from(table).select(columns)
+  let expected = null;
+  for (let from = 0; ;) {
+    const { data, error, count } = await client.from(table).select(columns, { count: 'exact' })
       .order(table === 'member_codes' ? 'code' : 'id').range(from, from + pageSize - 1);
     if (error) throw new Error(`Unable to load ${table}: ${error.message}`, { cause: error });
     if (!Array.isArray(data)) throw new Error(`Incomplete response for ${table}.`);
+    if (Number.isInteger(count)) {
+      if (expected !== null && count !== expected) throw new Error(`${table} changed while loading. Please refresh.`);
+      expected = count;
+    }
     rows.push(...data);
-    if (data.length < pageSize) return rows;
+    if (expected !== null ? rows.length === expected : data.length < pageSize) return rows;
+    if (!data.length || (expected !== null && rows.length > expected)) throw new Error(`Incomplete ${table} response. Please refresh.`);
+    from += data.length;
   }
 }
 

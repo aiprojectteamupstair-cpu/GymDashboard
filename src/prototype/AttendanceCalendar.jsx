@@ -6,7 +6,10 @@ import { calendarPeriod, currentStaffMonth, isStaffVisit } from './insights.js';
 
 export function AttendanceCalendar({ data, member, today }) {
   const staff = member.category_id === 'staff';
-  const [month, setMonth] = useState(() => staff ? currentStaffMonth(today) : today.slice(0, 7));
+  const [month, setMonth] = useState(() => {
+    const latest = data.attendance.filter(row => row.member_id === member.id && !row.voided_at).map(row => row.attendance_date).sort().at(-1) || today;
+    return staff ? currentStaffMonth(latest) : latest.slice(0, 7);
+  });
   const period = calendarPeriod(month, staff);
   const visits = data.attendance.filter(a => a.member_id === member.id && !a.voided_at && a.attendance_date >= period.start && a.attendance_date <= period.end && (!staff || isStaffVisit(a)));
   const visitDates = new Set(visits.map(a => a.attendance_date));

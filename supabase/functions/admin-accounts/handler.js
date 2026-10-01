@@ -24,12 +24,19 @@ export function createAdminHandler({ userClient, adminClient }) {
       if (raw.length > 4096) return reply(413, { error: 'Request too large.' });
       let body;
       try { body = JSON.parse(raw); } catch { return reply(400, { error: 'Invalid request.' }); }
-      if (!body || !['list', 'create'].includes(body.action)) return reply(400, { error: 'Unsupported action.' });
+      if (!body || !['list', 'create', 'delete'].includes(body.action)) return reply(400, { error: 'Unsupported action.' });
       if (body.action === 'create' && (typeof body.name !== 'string' || !body.name.trim() || body.name.trim().length > 120 ||
         typeof body.email !== 'string' || body.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email.trim()) ||
         typeof body.password !== 'string' || body.password.length < 6 || body.password.length > 128 ||
         (body.role && body.role !== 'admin'))) return reply(400, { error: 'Enter a name, valid email and a password of 6–128 characters. Only Admin accounts can be created.' });
       const admin = adminClient();
+      if (body.action === 'delete') {
+        if (!/^[0-9a-f-]{36}$/i.test(body.id || '')) return reply(400, { error: 'Choose an Admin account.' });
+        const disabled = await admin.rpc('disable_admin_account', { actor_auth_id: identity.user.id, target_staff_id: body.id });
+        if (disabled.error) return reply(403, { error: 'Unable to remove this account. Only another Admin may be removed.' });
+        const removal = disabled.data ? await admin.auth.admin.deleteUser(disabled.data) : { error: null };
+        return reply(200, { deleted: true, warning: removal.error ? 'Access revoked. Auth cleanup needs review by the Super Admin.' : null });
+      }
       if (body.action === 'list') {
         const accounts = [];
         for (let start = 0; ; start += 100) {

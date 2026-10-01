@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Activity, CalendarCheck2, LayoutDashboard, LogOut, Moon, RefreshCw, Settings2, ShieldCheck, Sun, Users } from 'lucide-react';
 import { supabase } from './client.js';
 import { loadLiveData } from './readData.js';
 import { CataloguePage, CheckInPage, Dashboard, MemberDirectory, MemberProfile } from '../prototype/pages.jsx';
 import { createWorkspaceSync } from './workspaceSync.js';
 import AdminAccounts from './AdminAccounts.jsx';
+import LiveDialogs from './LiveDialogs.jsx';
+import { createCommandSender } from './commands.js';
+import { attendanceCoverage } from '../prototype/coverage.js';
 import { Analytics } from '../prototype/Analytics.jsx';
 import { SummaryDialog } from '../prototype/SummaryDialog.jsx';
 import { Button, Field } from '../prototype/components.jsx';
@@ -22,6 +25,11 @@ export default function LiveApp() {
   const [page, setPage] = useState('dashboard');
   const [memberId, setMemberId] = useState(null);
   const [summary, setSummary] = useState(null);
+  const [modal, setModal] = useState(null);
+  const [mutation, setMutation] = useState({ busy: false, error: '' });
+  const [notice, setNotice] = useState('');
+  const saving = useRef(false);
+  const [sendCommand] = useState(() => createCommandSender(supabase));
   const [today, setToday] = useState(localDate);
   const [theme, setTheme] = useState(() => localStorage.getItem('community-fitness:theme') || 'light');
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem('community-fitness:theme', theme); }, [theme]);
@@ -33,7 +41,7 @@ export default function LiveApp() {
       if (!alive) return;
       setSession(next);
       if (sync.identity(next?.user.id || null)) {
-        setSummary(null); setMemberId(null); setPage('dashboard'); setError('');
+        setSummary(null); setModal(null); setMemberId(null); setPage('dashboard'); setError('');
       }
       // Keep Supabase requests outside its synchronous auth callback.
       setTimeout(() => { if (alive) void sync.refresh(); }, 0);
@@ -43,12 +51,12 @@ export default function LiveApp() {
   useEffect(() => {
     if (!session) return;
     const recheck = () => { if (document.visibilityState === 'hidden') return; setToday(localDate()); void sync.refresh(); };
-    const timer = setInterval(recheck, 60000);
+    const timer = setInterval(recheck, 300000);
     window.addEventListener('focus', recheck);
     return () => { clearInterval(timer); window.removeEventListener('focus', recheck); };
   }, [session, sync]);
   async function logout() {
-    sync.identity(null); setSession(null); setSummary(null); setMemberId(null);
+    sync.identity(null); setSession(null); setSummary(null); setModal(null); setMemberId(null);
     const { error: problem } = await supabase.auth.signOut({ scope: 'local' });
     if (problem) setError(problem.message);
   }
@@ -57,10 +65,24 @@ export default function LiveApp() {
 
   const { data, staff } = snapshot;
   const member = data.members.find(m => m.id === memberId);
-  const blocked = () => setError('Live data is read-only. Create, edit and check-in will be enabled after the trusted write APIs are ready.');
+  const coverage = attendanceCoverage(data);
+  const openModal = value => { setMutation({ busy: false, error: '' }); setModal(value); };
+  async function save(command, payload) {
+    if (saving.current) return;
+    saving.current = true; setMutation({ busy: true, error: '' }); setNotice('');
+    const owner = sync.current().owner;
+    try {
+      const result = await sendCommand(command, payload);
+      if (owner !== sync.current().owner) return;
+      setModal(null); setNotice(result.duplicate ? 'Already checked in today. No duplicate was created.' : 'Saved in Supabase. Refreshing the workspace…');
+      await sync.refresh({ force: true });
+      if (owner === sync.current().owner) setNotice(sync.current().error ? 'Saved in Supabase, but refresh failed. Do not repeat this save; use Refresh.' : 'Saved in Supabase and workspace refreshed.');
+    } catch (err) { if (owner === sync.current().owner) { setMutation({ busy: false, error: err.message }); setError(err.message); } }
+    finally { saving.current = false; setMutation(current => ({ ...current, busy: false })); }
+  }
   const navigate = next => { setPage(next); setMemberId(null); setError(''); window.scrollTo(0, 0); };
   const profile = id => { setPage('members'); setMemberId(id); setSummary(null); window.scrollTo(0, 0); };
-  const common = { data, today, onProfile: profile, onRenew: blocked, onCheckIn: blocked, onEditAttendance: blocked };
+  const common = { data, today, onProfile: profile, onRenew: id => openModal({ type: 'membership', id }), onCheckIn: id => openModal({ type: 'checkin', id }), onEditAttendance: row => openModal({ type: 'attendance-edit', row }) };
   async function exportData(scope) {
     const owner = sync.current().owner;
     try {
@@ -76,17 +98,19 @@ export default function LiveApp() {
       <div className="sidebar-bottom"><strong>{staff.display_name}</strong><p>{staff.role_code === 'super_admin' ? 'Super Admin' : 'Admin'}</p></div>
     </aside>
     <div className="main-shell"><header className="topbar"><strong>Live workspace</strong><div className="topbar-actions"><Button disabled={busy} onClick={refresh}><RefreshCw size={17} />{busy ? 'Refreshing…' : 'Refresh'}</Button><Button aria-label="Toggle theme" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}</Button><Button onClick={logout}><LogOut size={17} />Sign out</Button></div></header>
-      <main className="main-content" id="main-content"><p className="soft-note">Supabase · Member and attendance records are read-only. Super Admin can create Admin accounts.</p>
+      <main className="main-content" id="main-content"><div className="scope-note"><strong>Supabase connected · {data.members.length} members · {coverage.count.toLocaleString()} attendance records loaded</strong><p>{coverage.last ? `Recorded attendance: ${coverage.first} – ${coverage.last}. Latest recorded date is not a guarantee of complete coverage. Missing records do not prove absence.` : 'No attendance records were returned. Use Refresh if records are expected.'}</p>{coverage.last && <Button onClick={() => navigate('analytics')}>View recorded attendance</Button>}</div>
+        {notice && <p role="status" className="soft-note">{notice}</p>}
         {(error || workspace.error) && <p role="alert" className="error-banner">{error || workspace.error}</p>}
         {page === 'dashboard' && <Dashboard {...common} onNavigate={navigate} onDrilldown={setSummary} />}
-        {page === 'members' && (member ? <MemberProfile {...common} member={member} onBack={() => setMemberId(null)} onEdit={blocked} onArchive={blocked} /> : <MemberDirectory {...common} onAdd={blocked} />)}
+        {page === 'members' && (member ? <MemberProfile key={member.id} {...common} member={member} onBack={() => setMemberId(null)} onEdit={() => openModal({ type: 'member', id: member.id })} onArchive={() => openModal({ type: 'archive', id: member.id })} /> : <MemberDirectory {...common} onAdd={() => openModal({ type: 'member' })} />)}
         {page === 'analytics' && <Analytics data={data} today={today} onExport={exportData} />}
         {page === 'checkin' && <CheckInPage {...common} />}
-        {page === 'catalogue' && <CataloguePage data={data} canEdit={staff.role_code === 'super_admin'} onCreate={blocked} onEdit={blocked} onToggle={blocked} />}
+        {page === 'catalogue' && <CataloguePage data={data} canEdit={staff.role_code === 'super_admin'} onCreate={kind => openModal({ type: 'catalogue', kind })} onEdit={(kind, row) => openModal({ type: 'catalogue', kind, row })} onToggle={(kind, row) => save('catalogue.status', { kind, id: row.id, enabled: !row.enabled, expected_updated_at: row.updated_at })} />}
         {page === 'accounts' && staff.role_code === 'super_admin' && <AdminAccounts />}
       </main>
     </div>
     {summary && <SummaryDialog {...common} kind={summary} onClose={() => setSummary(null)} />}
+    <LiveDialogs modal={modal} data={data} today={today} onClose={() => { if (!saving.current) setModal(null); }} onEditAttendance={common.onEditAttendance} save={save} mutation={mutation} />
   </div>;
 }
 
