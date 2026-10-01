@@ -1,60 +1,166 @@
 # Project context and working rules
 
-Last updated: 2026-09-18. Business: The Community Fitness By Strategy First Gym.
+Last updated: 2026-10-01. Business: The Community Fitness By Strategy First Gym.
+
+## October 1 attendance and Admin API (supersedes earlier pending notes)
+
+- Imported 4,349 historical presences: July 1,139, August 2,064, September 1,146; July 1–September 16. Explicit assumed 18:00 Myanmar timestamps are labelled and excluded from arrival-hour metrics. No absence inferred from trailing blanks. See `docs/ATTENDANCE_IMPORT_2026_10_01.md`.
+- User explicitly authorized permanent deletion of duplicate C123 and its one membership; private backup retained. C124 remains and receives 26 resolved attendance dates; no membership history merged. Current totals: 423 members, 484 memberships, 22 PT purchases, 4,349 attendance.
+- Latest observed member-info source date September 21; attendance September 16. These are observed cutoffs, not proof of complete source coverage.
+- Deployed `admin-accounts` Edge Function with JWT verification, live enabled Super Admin checks, list/create only, password minimum 6, server-only privileged credentials and atomic staff/audit provisioning. Migration `20261001040433_admin_provisioning_and_attendance_import.sql` grants only narrowly scoped service operations; browser writes remain denied. Admin deletion and member/check-in/catalogue write APIs remain pending.
+- 52 tests, lint and build passed. Synthetic browser create/list flow passed; actual authenticated Edge creation still needs user verification because local project HTTPS connections time out. Do not claim a real Admin was created. VPN/network issue unresolved; no network settings changed. Never expose data or privileged keys as a workaround.
+
+## October 1 webpage connection — setup incomplete
+
+- Focus refresh fix: live same-user refresh is background/deduplicated/throttled, retaining memory-only verified data briefly on transport errors with a notice; confirmed access denial/sign-out/identity change clears it. Restored Check-in, Packages & Discounts and Super Admin-only Admin accounts tabs. Trusted write APIs remain pending; accounts tab shows only the caller, explicitly not a full staff list. 48 tests and synthetic-browser checks pass. See `docs/SUPABASE_WEB_CONNECTION.md`.
+
+- Latest repair: missing-profile error exposed a null owner `user_id`; the approved email now has confirmed Auth UUID `de3a0edd-e14a-44fa-911d-14787508c0a2`. Verified exact email and non-deleted/non-banned status, then relinked the existing enabled Super Admin profile with `staff.auth_relinked` audit. No account reset or policy/grant change. Current UUID passes 424/485/22 RLS reads; former UUID sees zero staff/members. Browser rendering still awaits user retry. This supersedes earlier linked-account details below.
+
+- Latest: user created the approved Auth account; exact email and confirmed/non-deleted/non-banned status were verified. Prepared staff profile `e0de280c-5ac0-4921-9e94-d4f03f4efbf7` is now linked and enabled as `super_admin`, with a provisioning audit event. This supersedes pending/unlinked notes below. Do not recreate/reset the account.
+- Rollback-only authenticated-role SQL tests passed: owner sees 424 members/485 memberships/22 PT; disabled/unregistered identities see zero members, direct inserts stay denied. No real browser session tested. Local HTTPS Auth endpoint still times out. Advisor now flags leaked-password protection disabled; no settings changed automatically.
+
+- Active entry now loads `src/supabase/LiveApp.jsx`, with Supabase Auth and paginated read-only RLS-backed loading. Local login is no longer the active entry; no local accounts were migrated/deleted. The older local UI remains in source.
+- Auth account creation is BLOCKED by local HTTPS timeouts to the project endpoint (Node/curl/browser). Do not claim an email was sent or an account created. User approved the owner email in the conversation; do not hardcode it or any password into the frontend.
+- Pending Super Admin staff profile `e0de280c-5ac0-4921-9e94-d4f03f4efbf7` is disabled with null user_id. Link only the exact approved Auth identity after creation and verification, then enable it. No RLS/grants were opened.
+- Read adapter handles former codes/source expiry and excludes imported history from today's New/Renew. Writes are blocked in the live UI; real login/positive role tests remain pending. Vite port is now 3000; verify Supabase redirect allowlist before email-link use.
+- See `docs/SUPABASE_WEB_CONNECTION.md` for implementation, 43 passing tests and the remaining setup. Do not bypass the Auth network failure by exposing member tables or copying real data into public assets.
+
+## September 30 real-member import (supersedes no-import and fixture notes below)
+
+- User authorized `01_Members_Updated.xlsx`; its `Recorded Date` is confirmed as Start Date. Imported to `axbfwmrrxsgzevvqshdu`: 424 members, 485 memberships, 22 PT purchases; 84 other history rows retained in member remarks/provenance. All 591 info rows reconciled, zero field mismatches. Attendance remains empty and awaits separate files.
+- Blank categories/IDs provisionally Guest. Guest codes now G001...; 70 previous short codes remain aliases. Source expiry, unknown dates/plans, shared vouchers and original notes are preserved. Do not infer missing dates, merge same-name people or turn day-pass notes into attendance.
+- Live packages are exactly Gym and Swimming Pool Only; guest digits = 3. No schema/grant/Auth changes. RLS still closed to unaffiliated clients. Frontend is still local and NOT connected to real data.
+- Local app now starts empty; `dataLifecycle.js` removes only known fixture people/dependents, reduces old catalogues to the two current packages, preserves non-fixture histories and normalizes Guest codes. It backs up raw storage at `community-fitness:prototype:v1:before-real-members-v1` before saving. Test fixtures are no longer a production dependency.
+- Private workbook/plan/SQL/review files live only in ignored `.private-imports/`; never commit, publish or put their personal data in the frontend. See `docs/MEMBER_IMPORT_2026_09_30.md` for reconciliation and follow-up work. Do not rerun a different import or reset live data automatically.
+
+## September 30 changes (supersedes payment/reporting rules below)
+
+- Payment methods are no longer collected, displayed or exported. Historical local payment fields are preserved, not erased. Supabase optional columns and empty reference table are retained unused; no migration or write-grant change was necessary.
+- Active memberships standalone card is replaced by one attendance-status card with three clickable circles. Green counts all non-archived Active members; Yellow/Red are subsets with last recorded visit 10–20 / over 20 Myanmar calendar days ago. Ends today remains distinct. Unknown/no-visit history is a separate drilldown, never an invented absence duration. Do not sum the three overlapping counts.
+- Attendance Excel has merged month/year headers above day-number columns; freeze first two rows and first three identity columns. Memberships exports nonunique text Voucher No. instead of payment, preserving leading zeroes and each renewal's voucher. Shared vouchers never merge people.
+- New local Admin passwords require 6–128 characters; Super Admin setup retains 12–128 and salted hashing. No existing accounts/passwords reset. Requested fixed Super Admin login is awaiting safe-setup clarification; no plaintext credentials committed or live Auth account created.
+- Frontend remains local. Real Auth, trusted CRUD/check-in APIs and live write permission tests remain pending. The approved member workbook import is described above; no demo people were uploaded.
+
+## September 29 live schema status (supersedes earlier unselected-project notes)
+
+- Supabase project `axbfwmrrxsgzevvqshdu`, **The Community Fitness's Database**, is verified and has the initial schema applied via the Supabase plugin.
+- Remote migration `20260929094219_community_fitness_foundation` is recorded locally under `supabase/migrations/`.
+- 12 public tables: original 11 collections plus `member_codes` for current/former ID ownership. Only confirmed reference catalogues are seeded (5/2/4/3); no people, attendance, accounts, passwords or Excel rows uploaded.
+- RLS enabled everywhere; enabled-staff SELECT policies only. Browser and service-role direct write grants intentionally closed until trusted APIs are built. Frontend still uses local storage/local login, NOT Supabase.
+- See `supabase/README.md` for verified checks, mappings and remaining work. Two rollback-only live SQL suites passed; security advisor has no findings. Positive Auth role tests and concurrent write APIs remain pending.
+- Do not upload local demo records or old workbook rows, bootstrap accounts, or open write grants automatically. No source passwords in files.
 
 ## Read first
 
-- `docs/PROJECT_BRIEF.md`: confirmed requirements, proposed profile fields, pending decisions.
-- `docs/SCREEN_FLOW.md`: proposed screens and reception workflow.
-- `docs/DATA_MODEL.md`: proposed Supabase model and implementation checks.
-- `docs/PROTOTYPE.md`: implemented UI, demo limitations and next steps.
-- These documents are planning drafts. Proposed fields, permissions, metrics, and edge-case policies are not user-confirmed merely because they appear here.
-- Continue in Burmese when communicating with the user.
+- `docs/PROJECT_BRIEF.md`: confirmed requirements and pending decisions.
+- `docs/SCREEN_FLOW.md`: screens, reception and membership workflows.
+- `docs/DATA_MODEL.md`: data model and future Supabase implementation checks.
+- `docs/PROTOTYPE.md`: implemented UI and development limitations.
+- Continue in Burmese. Pending policies remain pending even when a UI demonstrates them.
 
 ## Current stage
 
-- Interactive UI prototype implementation is authorized and has begun. The requested webpage-start notification has been given.
-- Dashboard, Members/Profile, Check-in, New/Renew forms, Analytics and structured Excel export use fictional sample data and the existing eight-table design.
-- The intended database is Supabase. No target Supabase project has been selected or modified in this task.
-- Active app: React 18 + Vite, `src/prototype/PrototypeApp.jsx`; `src/main.jsx` mounts it. Demo state uses the isolated `community-fitness:prototype:v1` local storage key.
-- Original app is retained in `src/App.jsx` and `src/exportWorkbook.js`. Its member keys derive from names; its saved data is separate and has not been migrated.
-- Prototype profiles use stable UUIDs and separate readable codes. Reconcile real legacy identities before connecting production data; do not merge people solely by name or legacy voucher number.
-- Existing attendance spreadsheet: `Daily-Active-Member-List.xlsx`.
-- User-supplied membership workbook is a reference for business information, not a required UI/export template. Source path is recorded in the brief.
+- Interactive local dashboard. The webpage-start notification has already been given.
+- The September 19 concept supersedes the earlier package/category catalogue.
+- Active entry: `src/main.jsx` -> `src/prototype/PrototypeApp.jsx`.
+- UI prototype/demo banners and the old Settings/reset screen were removed at the user's request. This does not mean a production database or authentication is connected.
+- Storage remains `community-fitness:prototype:v1` for compatibility; payload schema is version 2. Eleven local collections extend the original eight with plans, discounts and training purchases.
+- Supabase schema and approved member information are live in the selected project; the frontend adapter remains unconnected.
+- Development fixture people are fictional. Keep their provenance in developer documentation, not repeated product UI banners.
+- Original `src/App.jsx`, `src/exportWorkbook.js` and their separate browser data are retained.
+- Reference workbook paths are recorded in the brief.
 
-## Confirmed requirements
+## Confirmed current concept
 
-- Reception searches for a member and records a daily check-in. Only presence matters; no checkout.
-- Member information and admin CRUD, attendance visuals, and structured Excel export are the initial focus.
-- Payment method is a category only. Do not add money amounts, prices, balances, or revenue features.
-- Membership dates: manual start date, automatic calendar-month end date, admin override.
-- No membership freeze or day-transfer workflow in the initial release. Keep legacy special entries in remarks.
-- Gym membership and personal training are separately purchased services.
-- Jul/Aug/Sept packages mean three-month memberships, even where historical workbook dates appear inconsistent.
-- Off-peak refers to staff access during specified hours for a discount. Exact hours are pending.
-- Student (6-4): 06:00-16:00; Student (6-9): 06:00-21:00.
-- Condo package: 50% discount for residents of the gym's condominium. Do not infer a duration.
-- Daypass: one-day free promotional access for selected people or a new guest accompanying a member.
-- Classonly is no longer sold. Classes are currently sold to gym members; details are pending.
-- Legacy `Member No.` is likely a voucher number and may be shared by staff. Meaning is still pending confirmation. It is not a reliable unique member ID.
-- Profile fields, monthly reporting definitions, user count, devices, and exact permissions are pending.
+- Categories and readable unique IDs: VIP Customer VC01…, Customer C001…, Student S001…, Staff/Employee E001…, Guest G001….
+- Keep a stable internal UUID independently of these IDs. Category changes allocate a new category code while previous codes remain linked/searchable; attendance and membership history remain on the same person.
+- Packages: Gym (All Classes, Swimming Pool, Sauna); Swimming Pool Only.
+- Membership plans: 1, 3, 6 or 12 calendar months. Duration belongs to the plan.
+- Discounts: Condo 50%, Student 20%, Student 50%. Select an optional discount separately from package and plan.
+- Admin can create packages and discounts (details are immutable after saving), and mark them Active/Inactive. Only active records appear in new/renew membership dropdowns; history keeps snapshots.
+- Gym offers optional Personal Trainer (PT; Rehab is the same service): 5/10 sessions valid for 1 month, 20 for 2 months, 50 for 5 months. All start on the membership start date (user confirmed).
+- PT purchase records stay separate from membership, even when entered in the same form. No amount/revenue fields. Per-session usage tracking is not yet requested.
+- Guests have a one-day trial and no package/plan/discount requirement. Convert Guest to VIP/Customer/Student/Staff with package, plan and optional discount. Save conversion and membership together.
+- Reception finds/identifies a person and records daily presence. No checkout.
+- Manual membership start date, automatic calendar end, admin end override with reason.
+- No freeze/day transfer workflow. Keep historical special entries in remarks.
+- Payment is category only: do not add amounts, balances, prices or revenue.
+- Member CRUD, monthly attendance, visual analysis and structured Excel export remain in scope.
 
-## Implementation direction
+## Integrity and pending policies
 
-- Use a stable internal member ID and separate member profiles, package definitions, membership history, and attendance.
-- Treat one presence record per member per Myanmar calendar day as a proposed attendance rule. Enforce uniqueness in the database when this design is implemented.
-- Calculate calendar months from the original start date, clamp to the target month's final day, and retain calculated and overridden end dates separately.
-- End-date inclusivity remains an explicit pending business decision; do not silently choose it in production.
-- Preserve imported expiry dates and source references. Do not automatically recalculate historical memberships using current package rules.
-- Unknown package duration, payment method, or membership dates must remain unknown; do not invent values.
-- Proposed deletion behavior is archive with history retained. Final CRUD behavior needs confirmation.
-- Use Supabase Auth, role-aware RLS and explicit grants. Membership identity differs from administrator login identity.
-- Keep privileged keys server-side. Never add credentials, source member PII, or raw member rows to these docs.
-- Do not upload/import existing Excel data into a live database until the target project and reviewed member mappings are available.
+- Calendar addition uses the original start and clamps the target month's final day. Keep calculated and overridden end dates separately.
+- Expiry-day entry eligibility remains pending; show Ends today separately. Other membership eligibility/overlap policies and exact role permissions remain pending.
+- One presence per Myanmar calendar day is the attendance implementation direction. Enforce with a unique database constraint when connected.
+- Local Guest trial starts at first check-in, allows same-day duplicate lookup and blocks another trial day. Review any trial reissue policy before introducing exceptions.
+- Archive/restore keeps history; final deletion/correction/backdate policy remains pending.
+- Category ID allocation must become transaction-safe in Supabase; never merge people by name, phone or old voucher.
+- Historical Member No. may be a shared voucher; meaning remains unconfirmed.
+- Preserve source expiry dates, source references, category/package snapshots and unknown values during imports.
+- Old Jul/Aug/Sept labels mean three-month historical memberships. Earlier staff/student/condo labels are historical context, not current selectable packages.
+- Local upgrade keeps unknown historical categories disabled for new selection, preserves historical memberships, retires old catalogue options and backs up raw v1 data at `community-fitness:prototype:v1:before-concept-v2` before the first write.
+- Required profile fields, payment options, users/devices and permissions remain pending.
+- Future Supabase: Auth, enabled staff roles, role-aware RLS, explicit grants, trusted snapshots/audits and privileged keys server-side.
+- No live import until target project and reviewed member mappings are available. No source PII or credentials in docs.
 
-## Checks
+## Verification
 
-- `npm run lint` and `npm run build` are existing app checks; run when implementation changes warrant them.
-- `npm test` covers prototype calendar dates, overrides, duplicate retries, Myanmar midnight, preserved history, storage failures and export reconciliation. Browser review covers member create/edit/archive/restore, renewal, check-in, reload, filters, mobile layout and Excel download.
-- Live implementation still needs database concurrent check-ins and role allow/deny checks; browser-local demo behavior is not production authorization or concurrency protection.
-- Documentation-only updates require link and diff checks, not an unrelated app rebuild.
+- `npm test`: calendar/leap years, Myanmar midnight, category IDs, atomic Guest conversion, trial limits, active catalogues, preserved snapshots, PT dates, legacy upgrade, storage failure and Excel reconciliation.
+- `npm run lint` and `npm run build` for implementation changes.
+- Browser: create/edit/convert/renew, catalogue management, filtered dropdowns, export, reload, former-ID search, desktop/mobile modal scroll isolation and restore.
+- Live database concurrency, permission allow/deny and import reconciliation are still required before production use.
+- Documentation-only changes require link/diff checks, not an unrelated build.
+
+## September 21 reporting and UI rules
+
+- PT and Rehab are one service; UI says PT. New purchases normalize to `pt`; historical records remain intact.
+- Packages/discounts can be created or activated/deactivated, not edited after creation.
+- New member action is only in Members. Theme preference is stored at `community-fitness:theme`.
+- Staff profile calendars include both 25ths. The shared date appears in both reporting cycles, but the daily attendance row is not duplicated. Other categories use normal calendar months.
+- Dashboard is daily operations with four record drilldowns. Analytics uses completed 7/30/90-day periods and preceding equal-period comparisons. See `docs/METRICS.md` for denominators and limitations.
+- Excel remains five sheets with 8/10/5/6 operational columns for Members/Memberships/Attendance/Training; no technical IDs or duplicate date columns. Original stored history is not removed.
+## September 22 UI and reporting (supersedes earlier reporting details)
+
+- Product UI uses red, black, white and gray in light/dark modes; charts may use other distinguishing series colors.
+- Dashboard order: KPI cards, charts, then a larger Today's check-ins panel with compact membership follow-up alongside.
+- Export is available only in Analytics. Custom inclusive start/end dates replace the preset-only period; 1–366 days, no future dates. Today is allowed with a partial-day notice. Comparisons use the preceding equally sized period.
+- Analytics attendance records have same-day time correction. The user confirmed this means editing stored check-in time, not a time filter. A reason is required; original timestamp plus before/after audit history are retained. Future times and stale edits are rejected. The attendance date, member, snapshots and presence count do not change. Backdated entry/date correction and live role permissions remain pending.
+- Attendance Excel is a matrix: Member ID, Name, current Category, then one column per selected date; one row per selected member, numeric 1/0. 0 means no matching recorded check-in, not verified absence. Include zero-visit members. Category selection includes current category members plus people with matching historical category-at-visit records; matrix presence respects the historical visit filter. Other sheets keep these members' valid histories. Headers and the first three identity columns are frozen.
+- Tests cover matrix totals, zero-visit members, month/leap-day boundaries, time validation, stale edits, original timestamp and audit preservation. Local role labels are not production authorization.
+
+## September 23 — current access and UI (supersedes earlier restrictions)
+
+- Local login UI/role flow was explicitly selected; Supabase is still unconnected.
+  First use creates one Super Admin (no default credentials). Super Admin can
+  create/delete Admin accounts and edit saved non-legacy packages/discounts.
+  Both roles share all other current member, attendance, catalogue create/status,
+  analytics and export actions. Historical catalogue definitions remain preserved.
+- Accounts are separate from gym records at `community-fitness:local-accounts:v1`.
+  Passwords use salted PBKDF2-SHA256 (210,000 iterations), not plaintext.
+  Sessions are per-tab sessionStorage, expire after eight hours, and deleted
+  accounts lose their session on the next check. Login is a local workflow,
+  NOT a trusted authorization boundary; browser storage is user-editable.
+  Clearing storage loses local accounts/data. There is no local password recovery.
+  Do not use this as protection for real member data on shared devices.
+- Catalogue editing checks the local Super Admin role and stale updated timestamp,
+  logs before/after changes, and leaves existing membership/PT snapshots untouched.
+  Membership creation and attendance/audit actor IDs identify the signed-in account.
+  Deleted account audit history and member data are retained.
+- Dashboard has five cards in one desktop row. New / Renew counts valid membership
+  transactions **saved today in Myanmar time**, not membership start dates.
+  First membership is New; subsequent memberships are Renew. Profile-only/Guest
+  creation does not increment it. Two saved memberships for a person count twice.
+  Drilldown shows type, person, package/plan and save time. Narrow screens scroll
+  the same card row horizontally.
+- Page headers use only an icon and heading (functional controls remain).
+  Sidebar uses the supplied original PNG on a light gradient in both themes.
+  Student ID input/detail appears only for Student; previously stored values
+  are retained when changing category.
+- Check-in confirmation offers an optional same-day Myanmar time; blank uses now.
+  Invalid/future times are rejected. Existing presence is never overwritten by a
+  repeated check-in. Manual entries retain recorded-at time and time-source.
+- Saved check-in time correction is reached from an already-checked-in dialog
+  or Member profile → Attendance history → Edit time. Reason, same-date constraint,
+  original timestamp, stale-edit rejection and before/after audit are retained.
+- Analytics no longer includes the reconnect list or attendance-record table.
+  Charts, custom dates, metrics and Analytics-only Excel export remain.

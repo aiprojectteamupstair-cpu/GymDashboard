@@ -30,12 +30,17 @@ export function formatDate(value, options = {}) {
   return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC', ...options }).format(new Date(`${value}T00:00:00Z`));
 }
 
+export function formatAttendanceTime(row) {
+  if (!row.checked_in_at || row.time_source === 'import_date_only') return 'Time not recorded';
+  return `${formatTime(row.checked_in_at)}${row.time_source === 'import_assumed' ? ' (assumed)' : ''}`;
+}
+
 export function formatTime(value) {
   return new Intl.DateTimeFormat('en-GB', { timeZone: TIME_ZONE, hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(value));
 }
 
 export function endDate(membership) {
-  return membership?.override_end_date || membership?.calculated_end_date || null;
+  return membership?.override_end_date || membership?.source_end_date || membership?.calculated_end_date || null;
 }
 
 export function membershipStatus(membership, today = localDate()) {
@@ -62,7 +67,12 @@ export function categoryLabel(data, member) {
 export function findMembers(data, query = '', category = 'all', archived = false) {
   const needle = query.trim().toLocaleLowerCase();
   return data.members.filter(m => Boolean(m.archived_at) === archived && (category === 'all' || m.category_id === category) &&
-    [m.full_name, m.member_code, m.contact_phone, m.student_id].some(v => (v || '').toLocaleLowerCase().includes(needle)));
+    [m.full_name, m.member_code, m.contact_phone, m.student_id, ...(m.previous_codes || [])].some(v => (v || '').toLocaleLowerCase().includes(needle)));
+}
+
+export function guestStatus(data, member, today = localDate()) {
+  const firstVisit = data.attendance.filter(a => a.member_id === member.id && !a.voided_at).map(a => a.attendance_date).sort()[0];
+  return firstVisit ? (firstVisit === today ? 'Trial today' : 'Trial used') : 'Trial available';
 }
 
 export function attendanceInPeriod(data, start, end) {

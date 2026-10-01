@@ -1,106 +1,147 @@
 # The Community Fitness dashboard
 
-Updated: 2026-09-18. Stage: interactive UI prototype; business details marked pending remain drafts.
+> September 30: [approved member workbook imported](MEMBER_IMPORT_2026_09_30.md): 424 people, 485 memberships, 22 PT purchases; no attendance yet. Recorded Date is confirmed as Start Date, missing values remain unknown, source expiry/remarks are preserved. Guest IDs now use G001… with old aliases. Current packages remain only Gym and Swimming Pool Only. Local dummy data is retired with backup; frontend/Auth connection is still pending.
 
-## အတည်ပြုထားတဲ့ ရည်ရွယ်ချက်
+> September 29: Supabase schema-only phase completed on **The Community Fitness's Database** (`axbfwmrrxsgzevvqshdu`). Confirmed catalogue defaults only; no local/demo/real people or Excel data uploaded. Three months of historical Excel data will be reviewed and imported only after the system is final. Frontend/Auth integration is still pending. See [implementation and checks](../supabase/README.md).
 
-Reception နေ့စဉ် attendance မှတ်ဖို့၊ member information ကြည့်/ပြင်ဖို့၊ attendance ကို visual analysis လုပ်ဖို့နဲ့ စနစ်ကျတဲ့ Excel export ထုတ်ဖို့ ဖြစ်ပါတယ်။ Database ကို Supabase သုံးမယ်။ လက်ရှိ Excel က လုပ်ငန်းအချက်အလက်ယူဖို့ reference ဖြစ်ပြီး webpage/export ပုံစံကို အဲဒီအတိုင်းလိုက်လုပ်ဖို့ မလိုပါဘူး။
+Updated: 2026-09-23. The user's new concept replaces earlier category/package assumptions.
 
-Member information fields၊ monthly report definitions၊ admin အရေအတွက်၊ devices နဲ့ permissions အသေးစိတ်ကို ဆက်ညှိရဦးမယ်။ Webpage implementation စတင်ကြောင်း user ကိုအသိပေးပြီး fictional sample data နဲ့ UI prototype ဆောက်ထားပြီ။ Supabase ချိတ်ဆက်မှုနဲ့ real Excel import မလုပ်ရသေးပါဘူး။ လက်ရှိလုပ်ဆောင်ချက်တွေကို [Prototype](PROTOTYPE.md) မှာကြည့်နိုင်ပါတယ်။
+## Confirmed purpose
 
-## ပထမ version ရဲ့ scope
+Reception records daily presence; admins manage people and memberships; the dashboard shows member information, monthly attendance and visual analysis, with structured Excel export. No checkout, money amounts, prices, balances or revenue. Payment is only a method/category. Supabase is the intended database; the current local UI has no live connection.
 
-| လုပ်ဆောင်ချက် | အတည်ပြုထားတဲ့ပုံစံ |
+## Categories and IDs
+
+| Category | Readable ID |
 |---|---|
-| Attendance | Reception က member ရှာပြီး check-in နှိပ်မယ်။ Checkout မလိုဘူး |
-| Member management | Admin က member information CRUD လုပ်နိုင်မယ် |
-| Membership dates | Manual Start Date + Calendar-based End Date + Admin Override |
-| Payment | ပေးချေတဲ့နည်းလမ်း category ပဲမှတ်မယ်။ Amount/price/revenue မပါဘူး |
-| Analysis | Member information နဲ့ attendance အခြေခံ visuals။ Metrics အသေးစိတ်က draft |
-| Excel export | လက်ရှိထက် စနစ်ကျပြီး filter နဲ့ data scope ရှင်းတဲ့ workbook |
-| Special entries | လောလောဆယ် Remark ထဲမှာထားမယ် |
+| VIP Customer | VC01, VC02, … |
+| Customer | C001, C002, … |
+| Student | S001, S002, … |
+| Staff/Employee | E001, E002, … |
+| Guest | G001, G002, … |
 
-Membership freeze နဲ့ ရက်လွှဲ workflow မပါသေးပါဘူး။ PT နဲ့ Gym membership က သီးခြားဝယ်တာဖြစ်ပြီး၊ PT sessions ဝယ်ထားရုံနဲ့ Gym membership active ဖြစ်တယ်လို့ မတွက်ရပါဘူး။
+Internal identity is a stable UUID. Readable IDs change with category while former IDs remain searchable aliases. Names, contact numbers and vouchers are not unique identity keys. Category conversion preserves attendance and membership history.
 
-## Member profile fields အဆိုပြုချက်
+## Package, plan and discount
 
-အောက်က fields တွေဟာ စတင်ညှိဖို့ proposal ပါ။ Required/optional ကို user အတည်မပြုရသေးပါဘူး။
+These are three independent choices.
 
-| Field | Draft ပုံစံ | မှတ်ချက် |
-|---|---|---|
-| Member ID | System ကထုတ်ပေးမယ် | နာမည်/ဖုန်း/voucher မဟုတ်တဲ့ stable ID |
-| Member Code | System ကထုတ်ပေးမယ် | Reception နဲ့ Excel မှာ ဖတ်ရလွယ်တဲ့ unique code |
-| Full name | Required အဆိုပြု | နာမည်တူသူရှိနိုင်လို့ unique မထားဘူး |
-| Member category | Required အဆိုပြု | External Customer / Student / Staff; legacy မသိရင် Unknown |
-| Contact phone | Optional အဆိုပြု | Leading zero မပျောက်အောင် text သိမ်းမယ်။ Shared phone ဖြစ်နိုင်တယ် |
-| Date of birth | Optional အဆိုပြု | သိရင် အသက်ကိုအလိုအလျောက်တွက်မယ်; မသိရင် ခန့်မှန်းမထည့်ဘူး |
-| Student ID | Optional အဆိုပြု | Student ဖြစ်ပြီး ID ရှိတဲ့အခါသုံးမယ် |
-| Remark | Optional | အထူးအချက်အလက်နဲ့ legacy notes |
+| Choice | Confirmed options |
+|---|---|
+| Package | Gym (All Classes, Swimming Pool, Sauna); Swimming Pool Only |
+| Membership plan | 1 month; 3 months; 6 months; 1 Year |
+| Discount | None; Condo 50%; Student 20%; Student 50% |
 
-Package၊ payment method နဲ့ start/end dates ကို profile field တစ်ခုတည်းအဖြစ် ထပ်ခါပြင်တာထက် membership records ထဲမှာ history နဲ့သိမ်းမယ်။ Member category ပြောင်းသွားလည်း အရင် membership/attendance ရဲ့ category history ကိုထိန်းမယ်။
+Admin can create packages and discounts (details are immutable after saving) and set Active/Inactive. Only active records appear in new selections. Changing a catalogue record does not rewrite purchased memberships.
 
-## Package information
+Gym offers optional Personal Trainer (PT; Rehab is the same service):
 
-| Package/service | အတည်ပြုထားတာ | ဆက်သိဖို့လိုတာ |
-|---|---|---|
-| Jul / Aug / Sept Package | ၃ လစာ membership | အခြား access စည်းမျဉ်းတွေရှိမရှိ |
-| Off peak hour | Staff အတွက် သတ်မှတ်ချိန်အတွင်း ဆော့မှ discount | Exact hours၊ duration၊ eligible users |
-| Student (6-4) | 06:00–16:00 | Duration၊ included facilities |
-| Student (6-9) | 06:00–21:00 | Duration၊ included facilities |
-| Student (Pool) | Workbook မှာ label တွေ့ထား | Package အဓိပ္ပါယ်နဲ့ access |
-| Condo package | Condo နေထိုင်သူကို 50% discount | Duration၊ access |
-| Classonly | လက်ရှိမရောင်းတော့ | Historical label အဖြစ်ပဲထိန်းမယ် |
-| Classes | Gym members အတွက် ရောင်းတယ် | နေ့စဉ်အသုံးပြုမှုကို dashboard မှတ်ဖို့လိုမလို |
-| Daypass | တစ်ရက်အခမဲ့ promo | Guest ကို profile ဘယ်လောက်သိမ်းမလဲ၊ host member ချိတ်ဖို့လိုမလို |
-| PT 5/10/20/50 Sessions | Membership နဲ့သီးခြားရောင်းတဲ့ Personal Training | Initial release မှာ session usage CRUD ပါဖို့လိုမလို |
+| Purchased sessions | Validity |
+|---|---|
+| 5 | 1 calendar month |
+| 10 | 1 calendar month |
+| 20 | 2 calendar months |
+| 50 | 5 calendar months |
 
-Package price fields မပါဘူး။ Duration မသိတဲ့ package ကို ၁ လ/၃ လအဖြစ် အလိုအလျောက်မယူဘူး။
+The user confirmed that PT starts on the membership start date. Session-purchase validity is independent of the membership plan's duration or overridden membership end. Purchases remain separate records; session-by-session consumption is not requested yet. Swimming Pool Only has no training option.
 
-## Membership date rule
+## Guest trial and conversion
 
-Start Date ကို manual ရွေးမယ်။ Months ကို original start date မှ target month သို့တစ်ခါတည်းပေါင်းမယ်။ Target month မှာ ရက်တူမရှိရင် နောက်ဆုံးရက်ယူမယ်။
+Guest means a one-day trial visitor. No package, plan or discount is selected for a Guest. The current implementation records the trial on the first check-in; same-day repeated check-ins return the original visit. A later trial day requires conversion to membership; no reissue workflow is defined.
 
-| Start | Months | Calculated End Date |
+To convert: edit the Guest, choose VIP/Customer/Student/Staff, then select package, plan and optional discount. Conversion, new readable ID, membership and optional training purchase save together. The original UUID, G-code alias and attendance history remain linked.
+
+## Dates and history
+
+Membership start is manual. End date adds the selected plan's calendar months from the original start, clamping only the target month's final day.
+
+| Start | Months | Calculated end |
 |---|---:|---|
-| 2026-07-15 | 3 | 2026-10-15 |
 | 2026-01-31 | 1 | 2026-02-28 |
 | 2026-01-31 | 3 | 2026-04-30 |
 | 2028-02-29 | 12 | 2029-02-28 |
 
-Calculated End Date နဲ့ Override End Date ကိုသီးခြားထားမယ်။ Override ရှိရင် effective date အဖြစ်ယူမယ်။ ပြင်သူ၊ အချိန်၊ အကြောင်းပြချက်နဲ့ date အဟောင်း/အသစ်ကို history ထားမယ်။ Start Date ပြင်ရင် calculated date ပြန်တွက်ပြီး ရှိပြီးသား override ကိုဘယ်လိုလုပ်မလဲဆိုတာ form ထဲမှာရှင်းပြမယ်။
+Keep calculated and admin-overridden ends separately, with reason, actor and timestamp. Changing the start/plan in an unsaved form clears its previous override. Each renewal creates a new record. Historical imported expiry dates are preserved, never automatically recalculated.
 
-**End Date နေ့မှာ ဆော့ခွင့်ရှိသေးလား၊ အဲဒီနေ့က expiry boundary လားဆိုတာ မအတည်ပြုရသေးပါဘူး။** Draft screen က End Date ကိုပြမယ်; status/check-in policy ကို ဒီဆုံးဖြတ်ချက်ရမှ အပြီးသတ်မယ်။
+Expiry-day entry eligibility is still pending; Ends today is displayed separately. No membership freeze or day-transfer workflow.
 
-## Analysis အဆိုပြုချက်
+## Profile and analysis
 
-ပထမအဆင့်မှာ Today check-ins၊ ရွေးထားတဲ့ကာလရဲ့ daily attendance trend၊ member တစ်ယောက်ချင်းရဲ့ monthly attendance calendar နဲ့ member category breakdown ကို အဆိုပြုထားတယ်။
+Profile field proposal: name/category required; phone, birth date, student ID and remark optional. Age is derived only when a birth date is available. Required/optional rules still need business review.
 
-တစ်နေ့လာသူအရေအတွက်၊ ကာလတစ်ခုအတွင်းလာတဲ့မတူညီသူအရေအတွက်နဲ့ valid membership ရှိသူအရေအတွက်ကို သီးခြားပြမယ်။ Check-in မရှိတဲ့နေ့ကို stored attendance မရှိလို့ zero presence လို့ပြနိုင်ပေမယ့် absence rate တွက်ဖို့ opening days/expected attendance စည်းမျဉ်းမရှိသေးဘူး။ Excel အဟောင်း summary ရဲ့ Total Member ကို metric definition အဖြစ်မယူဘူး။
+Dashboard: today's check-ins, members with Active memberships, registered profiles including Guests, upcoming expiry follow-up. Analytics: completed 7/30/90-day periods, comparison with the preceding equal period, unique visitors, visits per visitor, repeat visitors, weekday averages, arrival hours and 14-day follow-up. Profile: monthly attendance calendar and membership/PT history. No absence or retention rate is inferred.
 
-## Excel export အဆိုပြုချက်
+Archive/restore preserves history. Final deletion, attendance correction and backdated entry policies remain pending.
 
-| Sheet | Data structure |
-|---|---|
-| Members | တစ် row = တစ် member; stable member code၊ profile၊ category၊ remark |
-| Memberships | တစ် row = တစ် membership/renewal; member code၊ package snapshot၊ payment method၊ dates၊ voucher reference |
-| Attendance | တစ် row = တစ် member ရဲ့ တစ်နေ့ presence; member code၊ Myanmar date၊ local check-in time၊ category snapshot |
+## Excel export
 
-Selected period နဲ့ filters ကိုတိတိကျကျဖော်ပြမယ်။ Attendance ကို period အလိုက်ထုတ်တဲ့အခါ အဲဒီ attendance နဲ့ချိတ်တဲ့ members/memberships တွေကိုလည်း ထုတ်ပေးမယ်။ ID/phone ကို text၊ dates ကို date၊ counts ကို number အဖြစ်ထားမယ်။ ငွေပမာဏ မပါဘူး။ Historical records နဲ့ archived members ကိုရွေးချယ်ထားတဲ့ export scope အလိုက်ထိန်းမယ်။ Export workbook က database backup အစားထိုးမဟုတ်ပါဘူး။
+Five sheets: Read me, Members, Memberships, Attendance and Training. Export includes only essential readable member details, package/plan/discount, effective membership dates, payment method, attendance and PT validity. Internal UUIDs, former IDs, redundant snapshot columns and separate calculated/override dates remain stored but are not included in this operational report.
 
-## ဆက်ညှိရမယ့် ဆုံးဖြတ်ချက်တွေ
+Full export includes archived profiles and histories. Attendance-period export includes attendees in that period and all their membership/training context. Directory filters are not silently applied. Text IDs/phones retain leading zeroes; dates are date cells; no amounts. Reporting export is not a database backup.
 
-1. Profile fields နဲ့ required/optional သတ်မှတ်ချက်။
-2. End Date inclusivity နဲ့ expired/unknown membership ရှိသူ check-in လုပ်လို့ရမရ။
-3. Payment method options နဲ့ legacy unknown value ပြသပုံ။
-4. Package duration/access details နဲ့ legacy Member No. ရဲ့အတည်ပြုအဓိပ္ပါယ်။
-5. Reception/Admin ခွင့်တွေ၊ users/devices၊ Supabase target project။
-6. Archive/Delete၊ check-in အမှားပြင်ခြင်း၊ အရင်နေ့ attendance ထည့်ခြင်းတို့လိုမလို။
-7. PT/Daypass ကို profile ထဲတွင် ဘယ်အတိုင်းအတာအထိပြပြီး CRUD လုပ်မလဲ။
-8. Monthly totals နဲ့ report metrics အသေးစိတ်။
+## Remaining decisions
 
-## Source and related documents
+- Required profile fields, payment categories, user/device counts and role permissions.
+- Expiry-day entry, other membership eligibility and overlapping memberships.
+- Archive/delete, attendance correction/backdating and possible Guest trial reissues.
+- Whether session-by-session PT tracking is needed.
+- Target Supabase project and reviewed legacy member mappings.
 
-- Business rules: user conversation, 2026-09-17. Confirmed rules above take priority over ambiguous workbook labels/dates.
-- Membership reference: `C:/Users/SFU/Downloads/Telegram Desktop/The_Community_Fitness_For_Active_Member_List_2026_5086e43d_8e5a.xlsx`.
-- Existing attendance reference: `Daily-Active-Member-List.xlsx` in the repository.
-- [Screen flow](SCREEN_FLOW.md), [Supabase data model](DATA_MODEL.md), and [project recall](../AGENTS.md).
+## Historical references
+
+Earlier Jul/Aug/Sept labels represent three-month historical memberships. Staff off-peak and Student 06:00–16:00 / 06:00–21:00 were earlier access labels; Condo 50% is now a separate discount. Keep historical source notes rather than translating uncertain records into new products automatically. Classonly is no longer sold. Legacy Member No. may be a shared voucher and remains unconfirmed.
+
+Source: user conversation, updated September 19 with PT 5-session validity and shared start date clarification.
+
+- Membership workbook: `C:/Users/SFU/Downloads/Telegram Desktop/The_Community_Fitness_For_Active_Member_List_2026_5086e43d_8e5a.xlsx`.
+- Attendance reference: `Daily-Active-Member-List.xlsx`.
+- [Screens](SCREEN_FLOW.md), [Data model](DATA_MODEL.md), [Implementation](PROTOTYPE.md), [Recall](../AGENTS.md).
+
+## September 21 refinements
+
+Light/dark themes persist per browser. New member creation is located only in Members. Dashboard summary cards open searchable matching records and profiles. Staff attendance uses inclusive 25th-to-next-25th cycles: the shared 25th appears in both periods, per explicit user confirmation. The underlying presence is stored once; ordinary member calendars stay calendar-month based. See [Metric definitions](METRICS.md).
+## September 22 UI and reporting (supersedes earlier reporting details)
+
+- Product UI uses red, black, white and gray in light/dark modes; charts may use other distinguishing series colors.
+- Dashboard order: KPI cards, charts, then a larger Today's check-ins panel with compact membership follow-up alongside.
+- Export is available only in Analytics. Custom inclusive start/end dates replace the preset-only period; 1–366 days, no future dates. Today is allowed with a partial-day notice. Comparisons use the preceding equally sized period.
+- Analytics attendance records have same-day time correction. The user confirmed this means editing stored check-in time, not a time filter. A reason is required; original timestamp plus before/after audit history are retained. Future times and stale edits are rejected. The attendance date, member, snapshots and presence count do not change. Backdated entry/date correction and live role permissions remain pending.
+- Attendance Excel is a matrix: Member ID, Name, current Category, then one column per selected date; one row per selected member, numeric 1/0. 0 means no matching recorded check-in, not verified absence. Include zero-visit members. Category selection includes current category members plus people with matching historical category-at-visit records; matrix presence respects the historical visit filter. Other sheets keep these members' valid histories. Headers and the first three identity columns are frozen.
+- Tests cover matrix totals, zero-visit members, month/leap-day boundaries, time validation, stale edits, original timestamp and audit preservation. Local role labels are not production authorization.
+
+## September 23 — current access and UI (supersedes earlier restrictions)
+
+- Local login UI/role flow was explicitly selected; Supabase is still unconnected.
+  First use creates one Super Admin (no default credentials). Super Admin can
+  create/delete Admin accounts and edit saved non-legacy packages/discounts.
+  Both roles share all other current member, attendance, catalogue create/status,
+  analytics and export actions. Historical catalogue definitions remain preserved.
+- Accounts are separate from gym records at `community-fitness:local-accounts:v1`.
+  Passwords use salted PBKDF2-SHA256 (210,000 iterations), not plaintext.
+  Sessions are per-tab sessionStorage, expire after eight hours, and deleted
+  accounts lose their session on the next check. Login is a local workflow,
+  NOT a trusted authorization boundary; browser storage is user-editable.
+  Clearing storage loses local accounts/data. There is no local password recovery.
+  Do not use this as protection for real member data on shared devices.
+- Catalogue editing checks the local Super Admin role and stale updated timestamp,
+  logs before/after changes, and leaves existing membership/PT snapshots untouched.
+  Membership creation and attendance/audit actor IDs identify the signed-in account.
+  Deleted account audit history and member data are retained.
+- Dashboard has five cards in one desktop row. New / Renew counts valid membership
+  transactions **saved today in Myanmar time**, not membership start dates.
+  First membership is New; subsequent memberships are Renew. Profile-only/Guest
+  creation does not increment it. Two saved memberships for a person count twice.
+  Drilldown shows type, person, package/plan and save time. Narrow screens scroll
+  the same card row horizontally.
+- Page headers use only an icon and heading (functional controls remain).
+  Sidebar uses the supplied original PNG on a light gradient in both themes.
+  Student ID input/detail appears only for Student; previously stored values
+  are retained when changing category.
+- Check-in confirmation offers an optional same-day Myanmar time; blank uses now.
+  Invalid/future times are rejected. Existing presence is never overwritten by a
+  repeated check-in. Manual entries retain recorded-at time and time-source.
+- Saved check-in time correction is reached from an already-checked-in dialog
+  or Member profile → Attendance history → Edit time. Reason, same-date constraint,
+  original timestamp, stale-edit rejection and before/after audit are retained.
+- Analytics no longer includes the reconnect list or attendance-record table.
+  Charts, custom dates, metrics and Analytics-only Excel export remain.

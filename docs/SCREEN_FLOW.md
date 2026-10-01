@@ -1,96 +1,134 @@
-# Screen flow draft
+# Screens and workflows
 
-Updated: 2026-09-18. An interactive prototype now implements the screen proposals with fictional browser-local data. Permissions and unresolved business policies remain proposals; see [Prototype](PROTOTYPE.md).
+> September 29: no UI/login flow changed. Database tables now exist in the selected Supabase project, but the frontend still uses local storage. Real Supabase login, account administration and transactional writes are the next stage; see [Supabase status](../supabase/README.md).
+
+Updated: 2026-09-23. Implemented local UI; final production permissions remain pending.
 
 ## Navigation
 
-| Page | အဓိကလုပ်ဆောင်ချက် |
+| Screen | Purpose |
 |---|---|
-| Dashboard | Prototype landing page; today counts၊ attendance trend၊ category breakdown၊ expiry follow-up |
-| Attendance | Reception အတွက် default landing page; search + check-in + today list |
-| Members | Search/filter list၊ member detail၊ add/edit/archive proposal |
-| Analytics | Daily trend၊ period totals၊ category breakdown၊ individual monthly calendar |
-| Settings | Admin package definitions၊ payment method categories၊ staff access settings |
+| Dashboard | Daily arrivals, attendance trend, category mix, membership follow-up |
+| Members | Search/current or former ID, category/status filters, profile/history |
+| Check-in | Find person, confirm identity, record daily presence |
+| Analytics | Period totals, daily attendance, category-at-visit breakdown, export |
+| Packages & Discounts | Create packages and discounts (no editing saved details); Active/Inactive; available plan list |
 
-Excel export ကို Members/Analytics ရဲ့ သက်ဆိုင်ရာ view မှာထားမယ်။ Data import လိုသေးရင် Admin workflow အဖြစ်သီးခြားထားမယ်။ Legacy import strategy ကို အတည်မပြုရသေးဘူး။
+The former Settings information/reset page was replaced by Packages & Discounts.
+Prototype/demo banners and repeated development copy have been removed.
+Local data and unconnected Supabase status are documented in developer docs.
 
-## Reception attendance page
+## Add or edit a person
 
-```text
-The Community Fitness                         Myanmar date / staff name
+New member -> category -> automatically allocated readable ID -> profile fields.
+Non-Guests can add package/plan/discount and optional training in the same form.
+Profile-only creation remains available. Guest selection hides membership fields.
 
-[Name, phone or member code ကိုရှာပါ.................................]
+Edit profile preserves identity. A category change previews a new readable ID;
+the previous code remains searchable. Existing members cannot be changed back to
+Guest through the current UI.
 
-Search results
-Member code / Name / Category / Package / End Date / Today's check-in
----------------------------------------------------------------
-သက်ဆိုင်သူကိုရွေး -> member အတည်ပြု -> [Check in]
+## Guest conversion
 
-Today's attendance                         [Name/category filter]
-Time / Member code / Name / Category / Membership status
-```
+Guest profile -> Convert to member -> choose VIP/Customer/Student/Staff ->
+package + plan + optional discount -> optional Gym PT -> save together.
 
-Names တူနေရင် member code နဲ့ contact information ကိုကြည့်ပြီး ရွေးမယ်။ Search result တစ်ခုတည်းဖြစ်နေလည်း လူမှန်ကိုရွေးပြီးမှ check-in လုပ်မယ်။ Check-in button ကို keyboard နဲ့သုံးလို့ရပြီး ဖုန်းမှာ tap လုပ်ရလွယ်တဲ့အရွယ်ထားမယ်။
+Cancellation or failed validation leaves the original Guest intact. A successful
+conversion preserves the original internal ID and visits and adds the G-code to
+previous IDs. The new membership captures the new category/code.
 
-```mermaid
-flowchart TD
-    A[Search member] --> B{Member found?}
-    B -->|Yes| C[Select and confirm member]
-    B -->|No| D[Check spelling or contact authorized admin]
-    C --> E{Checked in today?}
-    E -->|Yes| F[Show existing check-in time]
-    E -->|No| G[Show membership and access information]
-    G --> H[Apply agreed eligibility policy]
-    H --> I[Record check-in in database]
-    I --> J{Result}
-    J -->|Saved| K[Update today's list]
-    J -->|Already recorded| F
-    J -->|Error| L[Show failure and allow retry]
-```
+## Add or renew package
 
-Successful database write ရမှ Saved ပြမယ်။ Loading/error/empty states ကိုခွဲပြမယ်။ Expired၊ Unknown၊ Upcoming membership တွေကိုရှင်းပြမယ်; အဲဒီ status အတွက် allow/block policy ကို user နဲ့ဆက်ညှိမယ်။ သတ်မှတ်ချိန်ပြင်ပလာရင် information ပြတာနဲ့ hard-block လုပ်တာကိုလည်း ဆက်ဆုံးဖြတ်မယ်။ Offline support မအတည်ပြုရသေးဘူး။
+Select a non-Guest person -> active package -> plan -> optional active discount ->
+payment category -> manual start -> automatic calendar end -> optional admin end
+override/reason -> optional Gym PT sessions -> save new history record.
 
-တစ်နေ့တစ် attendance proposal အရ already checked-in ဖြစ်ရင် အချိန်အဟောင်းကိုပြပြီး duplicate မထည့်ဘူး။ Network retry/တခြား device မှ check-in က database uniqueness နဲ့ existing row ကိုပြန်ယူတဲ့ပုံစံသုံးမယ်။
+PT starts on the membership start date. 5/10 sessions end one month later,
+20 two months later, 50 five months later. Switching to Swimming Pool Only clears
+the hidden training selection. Overlapping membership dates show an advisory.
 
-## Member detail
+## Daily check-in
 
-- Header: member code၊ name၊ category၊ membership status နဲ့ today attendance။
-- Profile: အတည်ပြုထားတဲ့ fields; အခု draft က brief ရဲ့ proposed fields ဖြစ်တယ်။
-- Membership: current/upcoming packages၊ start/end dates၊ payment method၊ voucher reference၊ renew history။
-- Attendance: month selector၊ ရောက်လာတဲ့နေ့တွေပြတဲ့ calendar၊ month total နဲ့ recent visits။
-- Remark: legacy special entries နဲ့ admin notes။
+Search by name, phone, current/former ID -> confirm person -> save.
+Repeated check-in on the same Myanmar day shows the original timestamp.
+Guests get a first-day trial without membership. Once the trial day has passed,
+their check-in dialog directs reception to convert them to a member.
 
-PT information က Gym membership status နဲ့ သီးခြားပြမယ့် service information ဖြစ်တယ်။ PT session tracking ထည့်မလားဆိုတာ မအတည်ပြုရသေးဘူး။
+Membership status and access information are shown. Production expiry-day and
+other eligibility policies remain pending. No checkout or backdated input.
 
-## Admin workflows
+## Catalogue management
 
-Add member: proposed profile form -> review potential duplicates -> save stable ID -> optionally add membership.
+Packages and Discounts are separate tabs with search and Active/Inactive filters.
+Creation forms allow a name, facilities/training eligibility for packages or
+percentage for discounts, and status. Deactivated records disappear from new
+membership dropdowns but remain visible in catalogue management and old history.
+Legacy package definitions are kept inactive for historical references.
 
-Add/renew membership: member ရွေး -> package ရွေး -> manual start -> calculated end preview -> payment method/voucher/remark -> optional admin end override with reason -> save a new history record.
+## Modal behavior
 
-Package duration မသတ်မှတ်ရသေးရင် form ကမတွက်နိုင်ကြောင်းပြမယ်။ Duration အတည်ပြုခြင်း သို့မဟုတ် admin က explicit end date သတ်မှတ်ခြင်း လိုအပ်မယ်။ Historical expiry ကို automatic preview နဲ့အစားမထိုးဘူး။
+All dialogs isolate the background with native modal interaction and body/root
+scroll locking. The form/dialog scrolls independently. Close, Escape and save
+restore scrolling and the prior page position. Desktop and mobile paths are tested.
 
-Archive proposal: member profile ကို archive လုပ် -> default search မှဖယ် -> past attendance/memberships ကိုထိန်း -> restore လုပ်နိုင်။ Prototype ထဲမှာစမ်းနိုင်ပြီ; live permissions နဲ့ final CRUD policy ကိုဆက်ညှိမယ်။
+## Earlier permissions proposal (superseded September 23)
 
-## Permissions proposal
-
-| Action | Reception proposal | Admin proposal |
+| Action | Reception | Admin |
 |---|---|---|
-| Search/profile/current membership | Read | Read |
-| Today check-in | Create once/member/day | Create once/member/day |
-| Member profile CRUD | မသတ်မှတ်ရသေး | Manage |
-| Membership/renewal | မသတ်မှတ်ရသေး | Manage |
-| End Date override | No | Yes, with history |
-| Attendance correction/backdate | မသတ်မှတ်ရသေး | မသတ်မှတ်ရသေး |
-| Analytics/export | မသတ်မှတ်ရသေး | Yes |
-| Packages/payment methods/staff roles | No | Manage |
+| Search/profile | Read | Read |
+| Today's check-in | Record daily presence | Record daily presence |
+| Member/Guest conversion and renewals | Pending | Manage |
+| Catalogue and overrides | No (proposal) | Manage |
+| Analytics/export | Pending | Yes (proposal) |
+| Corrections/backdating | Pending | Pending |
 
-Gym staff member category က application Reception/Admin permission role နဲ့မတူပါဘူး။ UI controls နဲ့ database permissions နှစ်ခုလုံးမှာ access ကိုတူအောင်ထိန်းမယ်။
+Local controls do not implement production security. Supabase Auth/RLS and direct
+API allow/deny tests are required when the target project is selected.
 
-## Analytics draft
+Related: [Brief](PROJECT_BRIEF.md), [Model](DATA_MODEL.md), [Implementation](PROTOTYPE.md).
 
-Today count၊ period attendance trend နဲ့ category chart ကိုအရင်ပြမယ်။ Member profile ကိုနှိပ်ရင် individual monthly calendar သို့ရောက်မယ်။ Daypass/PT ဝယ်ယူမှုကို ordinary attendance count နဲ့ မရောရဘူး။
+## Reporting and appearance
 
-Zero presence နဲ့ data မရသေးခြင်း/loading/error ကိုမတူတဲ့ states အဖြစ်ပြမယ်။ Rates၊ New/Renew monthly totals နဲ့ retention ကို definitions မရှင်းသေးလို့ initial confirmed metrics အဖြစ်မသတ်မှတ်သေးဘူး။
+New member is available only in Members. Dashboard cards open matching searchable records with profile links. Theme control in the header persists light/dark selection. Analytics shows completed-period engagement and arrival patterns rather than repeating daily operations; see [Metrics](METRICS.md).
 
-Related: [Project brief](PROJECT_BRIEF.md), [Data model](DATA_MODEL.md).
+Staff profile calendars run from the 25th to the following 25th, both inclusive. The shared boundary date is reported in both cycles without duplicating storage. Other categories retain ordinary monthly calendars. Admin cannot edit existing package/discount details; Super Admin can edit them while existing memberships retain snapshots.
+## September 22 update
+
+Custom Analytics date ranges, Analytics-only export, same-day saved check-in time corrections with reason/original time/audit, red-neutral UI, and date-column 1/0 attendance export are implemented. The selected date range includes its endpoints and may include today (partial-day notice). Matrix exports include zero-visit members; 0 means no matching recorded visit. Underlying attendance remains row-based and unique per member/day. Live authorization and date/backdated-entry policies are still pending. See [current requirements](PROJECT_BRIEF.md#september-22-ui-and-reporting-supersedes-earlier-reporting-details).
+
+## September 23 — current access and UI (supersedes earlier restrictions)
+
+- Local login UI/role flow was explicitly selected; Supabase is still unconnected.
+  First use creates one Super Admin (no default credentials). Super Admin can
+  create/delete Admin accounts and edit saved non-legacy packages/discounts.
+  Both roles share all other current member, attendance, catalogue create/status,
+  analytics and export actions. Historical catalogue definitions remain preserved.
+- Accounts are separate from gym records at `community-fitness:local-accounts:v1`.
+  Passwords use salted PBKDF2-SHA256 (210,000 iterations), not plaintext.
+  Sessions are per-tab sessionStorage, expire after eight hours, and deleted
+  accounts lose their session on the next check. Login is a local workflow,
+  NOT a trusted authorization boundary; browser storage is user-editable.
+  Clearing storage loses local accounts/data. There is no local password recovery.
+  Do not use this as protection for real member data on shared devices.
+- Catalogue editing checks the local Super Admin role and stale updated timestamp,
+  logs before/after changes, and leaves existing membership/PT snapshots untouched.
+  Membership creation and attendance/audit actor IDs identify the signed-in account.
+  Deleted account audit history and member data are retained.
+- Dashboard has five cards in one desktop row. New / Renew counts valid membership
+  transactions **saved today in Myanmar time**, not membership start dates.
+  First membership is New; subsequent memberships are Renew. Profile-only/Guest
+  creation does not increment it. Two saved memberships for a person count twice.
+  Drilldown shows type, person, package/plan and save time. Narrow screens scroll
+  the same card row horizontally.
+- Page headers use only an icon and heading (functional controls remain).
+  Sidebar uses the supplied original PNG on a light gradient in both themes.
+  Student ID input/detail appears only for Student; previously stored values
+  are retained when changing category.
+- Check-in confirmation offers an optional same-day Myanmar time; blank uses now.
+  Invalid/future times are rejected. Existing presence is never overwritten by a
+  repeated check-in. Manual entries retain recorded-at time and time-source.
+- Saved check-in time correction is reached from an already-checked-in dialog
+  or Member profile → Attendance history → Edit time. Reason, same-date constraint,
+  original timestamp, stale-edit rejection and before/after audit are retained.
+- Analytics no longer includes the reconnect list or attendance-record table.
+  Charts, custom dates, metrics and Analytics-only Excel export remain.

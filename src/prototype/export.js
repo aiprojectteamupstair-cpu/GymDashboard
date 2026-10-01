@@ -1,5 +1,5 @@
 import { strToU8, zipSync } from 'fflate';
-import { categoryLabel, endDate, formatTime, localDate } from './domain.js';
+import { ageOn, categoryLabel, endDate, formatTime, localDate, membershipStatus, shiftDays, validDate } from './domain.js';
 
 const xml = value => Array.from(String(value ?? '')).filter(char => char.codePointAt(0) >= 32 || ['\t', '\n', '\r'].includes(char)).join('').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;');
 const column = index => { let result = ''; for (let n = index + 1; n > 0; n = Math.floor((n - 1) / 26)) result = String.fromCharCode(65 + (n - 1) % 26) + result; return result; };
@@ -15,25 +15,47 @@ function cell(value, row, col, style = 0) {
   return `<c r="${ref}" t="inlineStr" s="${style}"><is><t xml:space="preserve">${xml(value)}</t></is></c>`;
 }
 
-export function exportTables(data, { start = '', end = '' } = {}) {
+export function exportTables(data, { start = '', end = '', category = 'all' } = {}) {
   const filtered = Boolean(start && end);
-  const attendance = data.attendance.filter(a => !a.voided_at && (!filtered || (a.attendance_date >= start && a.attendance_date <= end))).sort((a, b) => a.checked_in_at.localeCompare(b.checked_in_at));
+  const selectedLabel = data.member_categories.find(c => c.id === category)?.label;
+  const seen = new Set();
+  const attendance = data.attendance.filter(a => !a.voided_at && (category === 'all' || (category === 'staff' ? ['Staff', 'Staff/Employee'].includes(a.member_category_snapshot) : a.member_category_snapshot === selectedLabel)) && (!filtered || (a.attendance_date >= start && a.attendance_date <= end))).sort((a, b) => (a.checked_in_at || a.attendance_date).localeCompare(b.checked_in_at || b.attendance_date)).filter(a => {
+    const key = `${a.member_id}/${a.attendance_date}`;
+    if (seen.has(key)) return false;
+    seen.add(key); return true;
+  });
   const ids = new Set(attendance.map(a => a.member_id));
-  const members = data.members.filter(m => !filtered || ids.has(m.id));
-  const memberships = data.memberships.filter(m => !filtered || ids.has(m.member_id));
+  const members = data.members.filter(m => category === 'all' || m.category_id === category || ids.has(m.id));
+  const memberIds = new Set(members.map(m=>m.id));
+  const memberships = data.memberships.filter(m => !m.voided_at && (memberIds.has(m.member_id)));
+  const training = (data.training_purchases || []).filter(t => !t.voided_at && (memberIds.has(t.member_id)));
   const memberMap = new Map(members.map(m => [m.id, m]));
-  const scope = filtered ? `Attendance: ${start} to ${end} (Myanmar). All membership history for those attendees included.` : 'All prototype members and history, including archived profiles.';
+  const scope = filtered ? `Attendance: ${start} to ${end} (Myanmar). Includes selected members with no recorded visits and their history.` : 'All members and history, including archived profiles.';
+  const today = localDate();
+  const dates = attendance.map(a=>a.attendance_date).sort();
+  const rangeStart = filtered ? start : dates[0] || today;
+  const rangeEnd = filtered ? end : dates.at(-1) || today;
+  const days = Math.round((Date.parse(rangeEnd)-Date.parse(rangeStart))/86400000)+1;
+  if (!validDate(rangeStart) || !validDate(rangeEnd) || days<1 || days>366) throw new Error('Choose an export period of 1–366 days.');
+  const columns = Array.from({length:days},(_,i)=>shiftDays(rangeStart,i));
+  const present = new Set(attendance.map(a=>`${a.member_id}/${a.attendance_date}`));
   return [
-    { name: 'Read me', headers: ['Item', 'Details'], rows: [
-      ['The Community Fitness', 'UI prototype export — fictional sample data'], ['Scope', scope],
-      ['Exported on', localDate()], ['Timezone', 'Asia/Rangoon'], ['Members', members.length], ['Memberships', memberships.length], ['Attendance', attendance.length],
-      ['Date rule', 'Calendar-based dates. Effective end = manual override when present; otherwise calculated end.'],
-      ['Entry policy', 'Expiry-day eligibility is pending. This export does not establish entry eligibility.'],
-      ['Payment methods', 'Prototype examples. No monetary values are stored.'],
+    { name: 'Read me', headers: ['Report', 'Details'], rows: [
+      ['The Community Fitness', 'Member and attendance report'], ['Scope', scope], ['Attendance category', category === 'all' ? 'All categories' : selectedLabel || category], ['Exported on', date(today)],
+      ['Timezone', 'Myanmar (Asia/Rangoon)'], ['Members', members.length], ['Memberships', memberships.length], ['Attendance', attendance.length], ['PT purchases', training.length],
+      ['Notes', 'Attendance: 1 = recorded presence, 0 = no matching check-in record (not proof of absence). Includes selected members even with no visits. Current category or matching historical visits determine the selected population.'],
+      ['Dates and status', 'End dates include admin overrides. Status and age are as of export date. Attendance columns cover every day of the selected period.'],
+      ['Staff calendar', 'Staff profile cycles include the 25th at both ends. Attendance sheet lists each actual visit once.'],
+      ['Voucher No.', 'Memberships lists each saved membership voucher. A voucher may cover multiple people and is not a unique member ID. Blank means not recorded.'],
     ] },
-    { name: 'Members', headers: ['Member code', 'Full name', 'Category', 'Phone', 'Date of birth', 'Student ID', 'Archived on', 'Remark'], rows: members.map(m => [m.member_code, m.full_name, categoryLabel(data, m), m.contact_phone, date(m.date_of_birth), m.student_id, date(m.archived_at ? localDate(m.archived_at) : ''), m.remark]) },
-    { name: 'Memberships', headers: ['Membership ID', 'Member code', 'Member name', 'Package', 'Category at purchase', 'Start date', 'Calculated end', 'Manual end', 'Effective end', 'Override reason', 'Payment method', 'Voucher reference', 'Access', 'Remark'], rows: memberships.map(m => [m.id, memberMap.get(m.member_id)?.member_code, memberMap.get(m.member_id)?.full_name, m.package_snapshot.label, m.member_category_snapshot, date(m.start_date), date(m.calculated_end_date), date(m.override_end_date), date(endDate(m)), m.override_reason, m.payment_method_label_snapshot || 'Not recorded', m.voucher_reference, m.package_snapshot.access_notes, m.remark]) },
-    { name: 'Attendance', headers: ['Member code', 'Member name', 'Myanmar date', 'Myanmar check-in time', 'Category at visit', 'Membership ID', 'Recorded by'], rows: attendance.map(a => [memberMap.get(a.member_id)?.member_code, memberMap.get(a.member_id)?.full_name, date(a.attendance_date), formatTime(a.checked_in_at), a.member_category_snapshot, a.membership_id || '', data.app_staff.find(s => s.user_id === a.checked_in_by)?.display_name || 'Not recorded']) },
+    { name: 'Members', headers: ['Member ID', 'Name', 'Category', 'Phone', 'Age', 'Student ID', 'Profile status', 'Remark'],
+      rows: members.map(m => [m.member_code, m.full_name, categoryLabel(data, m), m.contact_phone, ageOn(m.date_of_birth, today) ?? '', m.student_id, m.archived_at ? 'Archived' : 'Current', m.remark]) },
+    { name: 'Memberships', headers: ['Member ID', 'Name', 'Package', 'Plan', 'Discount', 'Start date', 'End date', 'Status', 'Voucher No.', 'Remark'],
+      rows: memberships.map(m => [memberMap.get(m.member_id)?.member_code, memberMap.get(m.member_id)?.full_name, m.package_snapshot.label, m.plan_snapshot?.label || 'Not recorded', m.discount_snapshot?.label || (m.plan_snapshot ? 'None' : 'Not recorded'), date(m.start_date), date(endDate(m)), membershipStatus(m, today), m.voucher_reference || '', m.remark]) },
+    { name: 'Attendance', headers: ['Member ID', 'Name', 'Category', ...columns],
+      rows: members.map(m => [m.member_code, m.full_name, categoryLabel(data,m), ...columns.map(day=>present.has(`${m.id}/${day}`) ? 1 : 0)]) },
+    { name: 'Training', headers: ['Member ID', 'Name', 'PT sessions', 'Start date', 'End date', 'Status'],
+      rows: training.map(t => [memberMap.get(t.member_id)?.member_code, memberMap.get(t.member_id)?.full_name, t.sessions, date(t.start_date), date(t.end_date), membershipStatus({ start_date: t.start_date, calculated_end_date: t.end_date }, today)]) },
   ];
 }
 
@@ -45,10 +67,33 @@ export function createPrototypeWorkbook(data, scope) {
   add('_rels/.rels', '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
   add('xl/workbook.xml', `<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${tables.map((t, i) => `<sheet name="${xml(t.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets></workbook>`);
   add('xl/_rels/workbook.xml.rels', `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${tables.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}<Relationship Id="rId${tables.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`);
-  add('xl/styles.xml', `<?xml version="1.0"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="yyyy-mm-dd"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Arial"/><color rgb="FF303247"/></font><font><b/><sz val="11"/><name val="Arial"/><color rgb="FFFFFFFF"/></font></fonts><fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF303247"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF4F5F8"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`);
+  add('xl/styles.xml', `<?xml version="1.0"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="dd mmm yyyy"/></numFmts><fonts count="2"><font><sz val="12"/><name val="Arial"/><color rgb="FF303247"/></font><font><b/><sz val="12"/><name val="Arial"/><color rgb="FFFFFFFF"/></font></fonts><fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF303247"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF4F5F8"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`);
   tables.forEach((table, i) => {
-    const rows = [`<row r="1" ht="32" customHeight="1">${table.headers.map((v, c) => cell(v, 1, c, 1)).join('')}</row>`, ...table.rows.map((row, r) => `<row r="${r + 2}" ht="24" customHeight="1">${row.map((v, c) => cell(v, r + 2, c, r % 2 ? 2 : 0)).join('')}</row>`)];
-    add(`xl/worksheets/sheet${i + 1}.xml`, `<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${table.headers.map((h, c) => `<col min="${c + 1}" max="${c + 1}" width="${table.name === 'Read me' && c === 1 ? 100 : /Remark|reason|Access/.test(h) ? 46 : /name|Package|ID/.test(h) ? 30 : 23}" customWidth="1"/>`).join('')}</cols><sheetData>${rows.join('')}</sheetData><autoFilter ref="A1:${column(table.headers.length - 1)}${table.rows.length + 1}"/></worksheet>`);
+    const matrix = table.name === 'Attendance';
+    const headerRow = matrix ? 2 : 1;
+    const merges = [];
+    const monthCells = [];
+    if (matrix) {
+      monthCells.push(cell('Member details', 1, 0, 1));
+      merges.push('A1:C1');
+      for (let c = 3; c < table.headers.length;) {
+        const month = table.headers[c].slice(0, 7);
+        let last = c;
+        while (last + 1 < table.headers.length && table.headers[last + 1].startsWith(month)) last++;
+        const label = new Intl.DateTimeFormat('en-GB', { month:'long', year:'numeric', timeZone:'UTC' }).format(new Date(month + '-01T00:00:00Z'));
+        monthCells.push(cell(label, 1, c, 1));
+        if (last > c) merges.push(column(c) + '1:' + column(last) + '1');
+        c = last + 1;
+      }
+    }
+    const rows = [
+      ...(matrix ? ['<row r="1" ht="30" customHeight="1">' + monthCells.join('') + '</row>'] : []),
+      '<row r="' + headerRow + '" ht="32" customHeight="1">' + table.headers.map((v,c)=>cell(matrix && c >= 3 ? Number(v.slice(8)) : v,headerRow,c,1)).join('') + '</row>',
+      ...table.rows.map((row,r)=>'<row r="' + (r + headerRow + 1) + '" ht="' + Math.max(32,...row.map(v=>Math.ceil(String(typeof v === 'object' ? '' : v ?? '').length/(table.name==='Read me'?90:38))*17)) + '" customHeight="1">' + row.map((v,c)=>cell(v,r+headerRow+1,c,r%2?2:0)).join('') + '</row>')
+    ];
+    const pane = matrix ? 'xSplit="3" ySplit="2" topLeftCell="D3" activePane="bottomRight"' : 'ySplit="1" topLeftCell="A2" activePane="bottomLeft"';
+    const cols = table.headers.map((h,c)=>'<col min="' + (c+1) + '" max="' + (c+1) + '" width="' + (matrix && c>=3 ? 6 : table.name==='Read me' && c===1 ? 100 : h==='Remark' ? 42 : h==='Name' ? 26 : h==='Package' ? 24 : /Category|Discount/.test(h) ? 22 : 18) + '" customWidth="1"/>').join('');
+    add('xl/worksheets/sheet' + (i+1) + '.xml', '<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ' + pane + ' state="frozen"/></sheetView></sheetViews><cols>' + cols + '</cols><sheetData>' + rows.join('') + '</sheetData><autoFilter ref="A' + headerRow + ':' + column(table.headers.length-1) + (table.rows.length+headerRow) + '"/>' + (merges.length ? '<mergeCells count="' + merges.length + '">' + merges.map(ref=>'<mergeCell ref="' + ref + '"/>').join('') + '</mergeCells>' : '') + '</worksheet>');
   });
   return zipSync(files, { level: 6 });
 }
@@ -57,7 +102,7 @@ export function downloadPrototypeWorkbook(data, scope) {
   const bytes = createPrototypeWorkbook(data, scope);
   const url = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
   const link = document.createElement('a');
-  link.href = url; link.download = `community-fitness-prototype-${scope?.start || 'all'}-${scope?.end || localDate()}.xlsx`;
+  link.href = url; link.download = `community-fitness-${scope?.start || 'all'}-${scope?.end || localDate()}.xlsx`;
   document.body.appendChild(link); link.click(); link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

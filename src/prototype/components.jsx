@@ -26,8 +26,9 @@ export function EmptyState({ title = 'No members found', message = 'Try a differ
   return <div className="empty-state"><div className="empty-icon"><Users size={24} /></div><h3>{title}</h3><p>{message}</p>{action}</div>;
 }
 
-export function StatCard({ label, value, description, icon: Icon, accent = false }) {
-  return <section className={`stat-card ${accent ? 'stat-accent' : ''}`}><div className="stat-top"><span>{label}</span><span className="stat-icon"><Icon size={19} /></span></div><strong>{value}</strong><div className="stat-bottom"><span>{description}</span>{accent ? <CheckCircle2 size={16} /> : <ArrowUpRight size={16} />}</div></section>;
+export function StatCard({ label, value, description, icon: Icon, accent = false, onClick }) {
+  const Tag = onClick ? 'button' : 'section';
+  return <Tag className={`stat-card ${accent ? 'stat-accent' : ''} ${onClick ? 'stat-link' : ''}`} {...(onClick ? { onClick, type: 'button', 'aria-label': `View ${label.toLowerCase()}` } : {})}><div className="stat-top"><span>{label}</span><span className="stat-icon"><Icon size={20} /></span></div><strong>{value}</strong><div className="stat-bottom"><span>{description}</span>{onClick && <ArrowUpRight size={17} />}</div></Tag>;
 }
 
 export function Dialog({ title, subtitle, onClose, children, wide = false }) {
@@ -35,8 +36,22 @@ export function Dialog({ title, subtitle, onClose, children, wide = false }) {
   const titleId = useId();
   useEffect(() => {
     const element = ref.current;
+    const scrollY = window.scrollY;
+    const body = document.body;
+    const saved = { position: body.style.position, top: body.style.top, width: body.style.width, overflow: body.style.overflow };
+    const rootOverflow = document.documentElement.style.overflow;
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.width = '100%';
+    body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
     element.showModal();
-    return () => element.close();
+    return () => {
+      element.close();
+      Object.assign(body.style, saved);
+      document.documentElement.style.overflow = rootOverflow;
+      window.scrollTo({ top: scrollY, behavior: 'instant' });
+    };
   }, []);
   return <dialog ref={ref} className={`app-dialog ${wide ? 'dialog-wide' : ''}`} aria-labelledby={titleId} onCancel={e => { e.preventDefault(); onClose(); }}>
     <div className="dialog-heading"><div><h2 id={titleId}>{title}</h2>{subtitle && <p>{subtitle}</p>}</div><button className="icon-button" onClick={onClose} aria-label="Close dialog"><X size={21} /></button></div>
