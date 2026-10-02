@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:bootstrap-super-admin": "node scripts/bootstrap-super-admin.mjs",
+    "dev:check-supabase-network": "node scripts/check-supabase-network.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint .",

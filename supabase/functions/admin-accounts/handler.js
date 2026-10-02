@@ -1,8 +1,12 @@
-const origins = new Set(['http://127.0.0.1:3000', 'http://localhost:3000']);
+function allowedOrigins() {
+  const configured = (globalThis.Deno?.env.get('ALLOWED_ORIGINS') || '').split(',').map(value => value.trim()).filter(Boolean);
+  return new Set(['http://127.0.0.1:3000', 'http://localhost:3000', ...configured]);
+}
 
 export function createAdminHandler({ userClient, adminClient }) {
   return async request => {
     const origin = request.headers.get('origin');
+    const origins = allowedOrigins();
     const headers = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', Vary: 'Origin',
       'Access-Control-Allow-Origin': origin && origins.has(origin) ? origin : 'http://127.0.0.1:3000',
       'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',

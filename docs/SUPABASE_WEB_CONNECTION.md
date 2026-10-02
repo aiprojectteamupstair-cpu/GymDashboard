@@ -12,6 +12,43 @@ The accounts placeholder is replaced by a Super Admin list/create form backed by
 
 Migration: `20261001040433_admin_provisioning_and_attendance_import.sql`. Browser write grants remain closed; privileged credentials stay inside the function. Security advisor still flags leaked-password protection disabled; settings were not changed.
 
+## Local Super Admin bootstrap
+
+Local development can use a default owner credential from `.env.local`, while
+production must set the equivalent values as deployment environment variables
+or rotate them in Supabase directly. The password is intentionally not read by
+frontend code and must not be committed.
+
+Required local variables:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPER_ADMIN_EMAIL`
+- `SUPER_ADMIN_PASSWORD`
+- `SUPER_ADMIN_DISPLAY_NAME`
+- `SUPER_ADMIN_STAFF_ID`
+
+Run `npm run dev:bootstrap-super-admin` after setting the service-role key. The
+script is idempotent: it creates or updates the configured Supabase Auth user,
+confirms the email, sets the configured password, and links/enables the matching
+`app_staff` profile as `super_admin`. Browser direct writes remain closed; the
+app still requires Supabase Auth plus an enabled staff profile before loading
+member data.
+
+If the app reports a Supabase project API network failure, run
+`npm run dev:check-supabase-network`. The frontend reads `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_PUBLISHABLE_KEY`, so local/prod can be pointed at the direct
+project API, a Supabase custom domain, or an approved HTTPS proxy/rewrite
+without changing source. The current local machine has previously resolved DNS
+but timed out on TCP 443 to the project API host, while the Supabase database
+itself remained reachable through trusted server-side tooling.
+
+For Vercel deployments, `vercel.json` rewrites `/supabase/*` to the Supabase
+project API. Set `VITE_SUPABASE_USE_SAME_ORIGIN_PROXY=true` in Vercel if client
+networks cannot reach `*.supabase.co` directly. Also set Supabase Edge Function
+secret `ALLOWED_ORIGINS` to the deployed site origin(s), comma-separated, before
+using write/admin functions from those origins.
+
 ## Focus refresh and restored navigation
 
 Same-identity Auth events, focus and the periodic access check now refresh in the
