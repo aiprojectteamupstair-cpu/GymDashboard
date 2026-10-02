@@ -1,11 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
+import { createLocalClient } from '../local/client.js';
+
+export const isLocal = import.meta.env.VITE_DATA_BACKEND === 'local' || (import.meta.env.DEV && import.meta.env.VITE_DATA_BACKEND !== 'supabase');
 
 const sameOriginProxy = import.meta.env.VITE_SUPABASE_USE_SAME_ORIGIN_PROXY === 'true';
 export const SUPABASE_URL = sameOriginProxy
   ? new URL('/supabase', window.location.origin).href.replace(/\/$/, '')
-  : import.meta.env.VITE_SUPABASE_URL || 'https://axbfwmrrxsgzevvqshdu.supabase.co';
-export const SUPABASE_HOST = new URL(SUPABASE_URL).host;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_Rzm48mMbwsjNV9VRmZ7wfQ_5oMejtxm';
+  : import.meta.env.VITE_SUPABASE_URL;
+export const SUPABASE_HOST = SUPABASE_URL ? new URL(SUPABASE_URL).host : '';
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_SUPABASE_TIMEOUT_MS || 30000);
 
 function timeoutSignal(baseSignal) {
@@ -23,7 +26,7 @@ function describeNetworkFailure(error) {
 }
 
 // Publishable key only. Authorization is enforced by Supabase Auth and table RLS.
-export const supabase = createClient(
+export const supabase = isLocal ? createLocalClient() : createClient(
   SUPABASE_URL,
   SUPABASE_PUBLISHABLE_KEY,
   {

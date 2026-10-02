@@ -44,6 +44,7 @@ export function normalizeSnapshot(tables) {
 }
 
 export async function loadLiveData(client, expectedUserId) {
+  if (client.loadWorkspace) return client.loadWorkspace(expectedUserId);
   const { data: identity, error: authError } = await client.auth.getUser();
   if (authError) throw authError;
   if (!identity.user || (expectedUserId && identity.user.id !== expectedUserId)) throw new Error('Please sign in again.');

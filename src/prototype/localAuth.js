@@ -12,12 +12,25 @@ async function passwordHash(password, salt) {
   return hex(await crypto.subtle.deriveBits({ name:'PBKDF2', salt:bytes(salt), iterations:ITERATIONS, hash:'SHA-256' }, key, 256));
 }
 
-export function createLocalAuth(storage = window.localStorage, session = window.sessionStorage, clock = () => new Date()) {
+export function createLocalAuth(storage = window.localStorage, session = window.sessionStorage, clock = () => new Date(), useDefaultSuperAdmin = false) {
   function read() {
     const raw = storage.getItem(AUTH_KEY);
-    if (!raw) return { version:1, accounts:[], audit:[] };
-    const data = JSON.parse(raw);
+    const data = raw ? JSON.parse(raw) : { version:1, accounts:[], audit:[] };
     if (data.version !== 1 || !Array.isArray(data.accounts) || !Array.isArray(data.audit)) throw new Error('Local accounts could not be read. Saved accounts have not been replaced.');
+    if (useDefaultSuperAdmin && data.default_super_admin_revision !== 1) {
+      const username = 'admin@communityfitness.local';
+      let row = data.accounts.find(account => account.role === 'super_admin');
+      if (data.accounts.some(account => account.username === username && account.id !== row?.id)) throw new Error('The default Super Admin username is already in use. Saved accounts have not been replaced.');
+      if (!row) {
+        row = { id:crypto.randomUUID(), display_name:'Super Admin', role:'super_admin', created_at:clock().toISOString() };
+        data.accounts.push(row);
+      }
+      // Apply the requested local credential change once, preserving identity and history.
+      Object.assign(row, { username, salt:'66c574c2880d4e2e9ac18c2ef69a79bf', password_hash:'7f8170fef39f48d7693a0bab3b0fe627ed17712f0d997ea3f5b52f509fe34391', session_version:crypto.randomUUID() });
+      data.audit.push({ action:'account.default_updated', actor_id:row.id, account:publicUser(row), occurred_at:clock().toISOString() });
+      data.default_super_admin_revision = 1;
+      storage.setItem(AUTH_KEY, JSON.stringify(data));
+    }
     return data;
   }
   function currentUser() {

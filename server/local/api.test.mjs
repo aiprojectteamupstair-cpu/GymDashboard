@@ -1,0 +1,73 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
+import { readFile } from 'node:fs/promises';
+import pg from 'pg';
+import { initializeDatabase } from './database.mjs';
+import { createLocalApi, hashPassword } from './api.mjs';
+import { startDatabase, root } from './runtime.mjs';
+
+test('PostgreSQL local API: authentication, transactions, permissions, retries and persistence', async () => {
+  const local=await startDatabase(); await local.end();
+  const config=JSON.parse(await readFile(`${root}/connection.json`,'utf8'));
+  const database=`gym_test_${crypto.randomUUID().replaceAll('-','')}`;
+  const admin=new pg.Client({...config,database:'postgres'}); await admin.connect();
+  await admin.query(`CREATE DATABASE ${database}`);
+  const pool=new pg.Pool({...config,database});
+  let server;
+  try {
+    const salt='11111111111111111111111111111111';
+    const seed={email:'admin@communityfitness.local',salt,hash:await hashPassword('Admin@12345',salt)};
+    await initializeDatabase(pool,seed);
+    server=createServer(createLocalApi(pool));
+    await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+    const base=`http://127.0.0.1:${server.address().port}`;
+    async function request(path,body,cookie='',extra={}) {
+      const response=await fetch(`${base}/api/local/${path}`,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json',Cookie:cookie,...extra},body:body===undefined?undefined:JSON.stringify(body)});
+      return {status:response.status,body:await response.json(),cookie:response.headers.get('set-cookie')?.split(';')[0]};
+    }
+    assert.equal((await request('workspace')).status,401);
+    assert.equal((await request('login',{email:seed.email,password:'wrong'})).status,401);
+    assert.equal((await request('login',{email:seed.email,password:'Admin@12345'},'',{Origin:'https://evil.example'})).status,403);
+    const login=await request('login',{email:seed.email,password:'Admin@12345'});
+    assert.equal(login.status,200); const cookie=login.cookie;
+    assert.ok(cookie); assert.equal(login.body.user.password_hash,undefined);
+    const first=await request('workspace',undefined,cookie);
+    assert.equal(first.body.data.members.length,0);
+    const command=(name,payload,id=crypto.randomUUID(),session=cookie)=>request('gym-commands',{command:name,payload,request_id:id},session);
+    const id=crypto.randomUUID(),input={full_name:'Local Integration Guest',category_id:'guest'};
+    const created=await command('member.save',input,id);
+    assert.equal(created.status,200); const member=created.body.result.member;
+    assert.equal((await command('member.save',input,id)).body.result.member.id,member.id);
+    assert.equal((await command('member.save',{...input,full_name:'Changed'},id)).status,400);
+    const checkins=await Promise.all([command('attendance.checkin',{id:member.id,acknowledged:true}),command('attendance.checkin',{id:member.id,acknowledged:true})]);
+    assert.ok(checkins.every(result=>result.status===200));
+    assert.equal(checkins.filter(result=>result.body.result.duplicate).length,1);
+    assert.equal((await command('member.save',{...input,id:member.id,expected_updated_at:'old'})).status,400);
+    const before=(await request('workspace',undefined,cookie)).body.data;
+    assert.equal((await command('member.save',{full_name:'Failed conversion',category_id:'customer',id:member.id,expected_updated_at:member.updated_at})).status,400);
+    assert.deepEqual((await request('workspace',undefined,cookie)).body.data,before);
+    const staff=await request('admin-accounts',{action:'create',name:'Reception',email:'reception@example.test',password:'test-password'},cookie);
+    assert.equal(staff.status,200);
+    const receptionist=await request('login',{email:'reception@example.test',password:'test-password'});
+    assert.equal((await request('admin-accounts',{action:'list'},receptionist.cookie)).status,403);
+    assert.equal((await command('catalogue.save',{kind:'packages',id:'gym',label:'No permission',enabled:true},crypto.randomUUID(),receptionist.cookie)).status,400);
+    assert.equal((await request('admin-accounts',{action:'delete',id:login.body.user.id},cookie)).status,400);
+    assert.equal((await request('admin-accounts',{action:'delete',id:staff.body.account.id},cookie)).status,200);
+    assert.equal((await request('workspace',undefined,receptionist.cookie)).status,401);
+    await initializeDatabase(pool,seed);
+    const persisted=await request('workspace',undefined,cookie);
+    assert.equal(persisted.body.data.members.length,1);
+    assert.equal(persisted.body.data.attendance.length,1);
+    const independent=new pg.Client({...config,database}); await independent.connect();
+    assert.equal(Number((await independent.query('SELECT count(*) FROM gym_local.members')).rows[0].count),1);
+    await independent.end();
+    await request('logout',{},cookie);
+    assert.equal((await request('workspace',undefined,cookie)).status,401);
+  } finally {
+    if (server) await new Promise(resolve=>server.close(resolve));
+    await pool.end();
+    await admin.query(`DROP DATABASE ${database}`);
+    await admin.end();
+  }
+});

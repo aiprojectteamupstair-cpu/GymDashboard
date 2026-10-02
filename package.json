@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "db:start": "node scripts/local-db.mjs start",
+    "db:stop": "node scripts/local-db.mjs stop",
+    "test:local": "node --test server/local/api.test.mjs",
     "dev:bootstrap-super-admin": "node scripts/bootstrap-super-admin.mjs",
     "dev:check-supabase-network": "node scripts/check-supabase-network.mjs",
     "build": "vite build",
@@ -24,10 +27,12 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@vitejs/plugin-react": "^6.0.5",
+    "embedded-postgres": "18.4.0-beta.17",
     "eslint": "^10.8.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^17.8.0",
+    "pg": "8.23.1",
     "vite": "^8.2.0"
   }
 }

@@ -1,6 +1,14 @@
 # Project context and working rules
 
-Last updated: 2026-10-01. Business: The Community Fitness By Strategy First Gym.
+Last updated: 2026-10-02. Business: The Community Fitness By Strategy First Gym.
+
+## October 2 local PostgreSQL (supersedes active-entry/backend notes below)
+
+- User selected a separate local PostgreSQL database; hosted Vercel builds will use Supabase via environment variables. `npm run dev` defaults to the local backend; production builds default to Supabase and require explicit URL/publishable key. See [local setup](docs/LOCAL_POSTGRES.md).
+- Active UI remains `src/supabase/LiveApp.jsx`, now sharing the local API client or Supabase client based on environment. Local mode uses server-verified login, HttpOnly sessions and real PostgreSQL, not browser-storage authentication.
+- Project-local PostgreSQL 18.4 listens on 127.0.0.1:55432, database `community_fitness_local`; private persistent files and generated DB credentials are under ignored `.local-db/`. Vite denies HTTP access to that folder and private import files. Never delete this folder to restart.
+- Local database starts with reference catalogues, zero people and the user-requested local Super Admin (hashed credential seed on server only). No remote/browser data was copied; no live Auth account, grants, data or deployment changed. Local and hosted accounts/data are independent.
+- `npm run db:start`, `npm run db:stop`, `npm run test:local` manage/verify it. Isolated real PostgreSQL API checks cover permissions, idempotency, concurrent check-in, failed-conversion rollback and account/session revocation. Shared 57 tests, lint/build and browser login/reload checks passed. This does not resolve the previously reported remote network issue.
 
 ## October 1 attendance and Admin API (supersedes earlier pending notes)
 

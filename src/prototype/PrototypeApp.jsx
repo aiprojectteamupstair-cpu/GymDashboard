@@ -21,7 +21,7 @@ const navigation = [
 ];
 
 export default function PrototypeApp() {
-  const [auth] = useState(() => createLocalAuth());
+  const [auth] = useState(() => createLocalAuth(window.localStorage, window.sessionStorage, () => new Date(), true));
   const [user, setUser] = useState(() => { try { return auth.currentUser(); } catch { return null; } });
   const [repository] = useState(() => createPrototypeRepository(window.localStorage, () => new Date(), () => auth.requireUser()));
   const [data, setData] = useState(() => repository.getSnapshot());

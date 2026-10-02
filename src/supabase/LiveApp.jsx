@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Activity, CalendarCheck2, LayoutDashboard, LogOut, Moon, RefreshCw, Settings2, ShieldCheck, Sun, Users } from 'lucide-react';
-import { supabase } from './client.js';
+import { supabase, isLocal } from './client.js';
 import { loadLiveData } from './readData.js';
 import { CataloguePage, CheckInPage, Dashboard, MemberDirectory, MemberProfile } from '../prototype/pages.jsx';
 import { createWorkspaceSync } from './workspaceSync.js';
@@ -74,9 +74,9 @@ export default function LiveApp() {
     try {
       const result = await sendCommand(command, payload);
       if (owner !== sync.current().owner) return;
-      setModal(null); setNotice(result.duplicate ? 'Already checked in today. No duplicate was created.' : 'Saved in Supabase. Refreshing the workspace…');
+      setModal(null); setNotice(result.duplicate ? 'Already checked in today. No duplicate was created.' : 'Saved. Refreshing the workspace…');
       await sync.refresh({ force: true });
-      if (owner === sync.current().owner) setNotice(sync.current().error ? 'Saved in Supabase, but refresh failed. Do not repeat this save; use Refresh.' : 'Saved in Supabase and workspace refreshed.');
+      if (owner === sync.current().owner) setNotice(sync.current().error ? 'Saved, but refresh failed. Do not repeat this save; use Refresh.' : 'Saved and workspace refreshed.');
     } catch (err) { if (owner === sync.current().owner) { setMutation({ busy: false, error: err.message }); setError(err.message); } }
     finally { saving.current = false; setMutation(current => ({ ...current, busy: false })); }
   }
@@ -97,8 +97,8 @@ export default function LiveApp() {
       <nav aria-label="Main navigation">{[['dashboard', 'Dashboard', LayoutDashboard], ['members', 'Members', Users], ['checkin', 'Check-in', CalendarCheck2], ['analytics', 'Analytics', Activity], ['catalogue', 'Packages & Discounts', Settings2], ...(staff.role_code === 'super_admin' ? [['accounts', 'Admin accounts', ShieldCheck]] : [])].map(([id, label, Icon]) => <button key={id} className={`nav-item ${page === id ? 'nav-active' : ''}`} aria-current={page === id ? 'page' : undefined} onClick={() => navigate(id)}><Icon size={19} />{label}</button>)}</nav>
       <div className="sidebar-bottom"><strong>{staff.display_name}</strong><p>{staff.role_code === 'super_admin' ? 'Super Admin' : 'Admin'}</p></div>
     </aside>
-    <div className="main-shell"><header className="topbar"><strong>Live workspace</strong><div className="topbar-actions"><Button disabled={busy} onClick={refresh}><RefreshCw size={17} />{busy ? 'Refreshing…' : 'Refresh'}</Button><Button aria-label="Toggle theme" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}</Button><Button onClick={logout}><LogOut size={17} />Sign out</Button></div></header>
-      <main className="main-content" id="main-content"><div className="scope-note"><strong>Supabase connected · {data.members.length} members · {coverage.count.toLocaleString()} attendance records loaded</strong><p>{coverage.last ? `Recorded attendance: ${coverage.first} – ${coverage.last}. Latest recorded date is not a guarantee of complete coverage. Missing records do not prove absence.` : 'No attendance records were returned. Use Refresh if records are expected.'}</p>{coverage.last && <Button onClick={() => navigate('analytics')}>View recorded attendance</Button>}</div>
+    <div className="main-shell"><header className="topbar"><strong>{isLocal ? 'Local workspace' : 'Live workspace'}</strong><div className="topbar-actions"><Button disabled={busy} onClick={refresh}><RefreshCw size={17} />{busy ? 'Refreshing…' : 'Refresh'}</Button><Button aria-label="Toggle theme" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}</Button><Button onClick={logout}><LogOut size={17} />Sign out</Button></div></header>
+      <main className="main-content" id="main-content"><div className="scope-note"><strong>{data.members.length} members · {coverage.count.toLocaleString()} attendance records loaded</strong><p>{coverage.last ? `Recorded attendance: ${coverage.first} – ${coverage.last}. Latest recorded date is not a guarantee of complete coverage. Missing records do not prove absence.` : 'No attendance recorded yet.'}</p>{coverage.last && <Button onClick={() => navigate('analytics')}>View recorded attendance</Button>}</div>
         {notice && <p role="status" className="soft-note">{notice}</p>}
         {(error || workspace.error) && <p role="alert" className="error-banner">{error || workspace.error}</p>}
         {page === 'dashboard' && <Dashboard {...common} onNavigate={navigate} onDrilldown={setSummary} />}
@@ -125,17 +125,17 @@ function RemoteLogin({ initialError }) {
     try { const { error: problem } = await operation(); if (problem) throw problem; }
     catch (err) { setError(err.message); } finally { setBusy(false); }
   }
-  return <main className="login-shell"><section className="login-card"><div className="login-logo"><img src="/community-fitness-logo.png" alt="The Community Fitness by Strategy First" /></div><h1>Sign in</h1><p>Use your authorized Supabase staff account.</p>
+  return <main className="login-shell"><section className="login-card"><div className="login-logo"><img src="/community-fitness-logo.png" alt="The Community Fitness by Strategy First" /></div><h1>Sign in</h1><p>Sign in to your gym workspace.</p>
     <form className="login-form" onSubmit={e => { e.preventDefault(); void run(() => supabase.auth.signInWithPassword({ email: email.trim(), password })); }}>
       <Field label="Email"><input required type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} /></Field>
       <Field label="Password"><input type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} /></Field>
       <Button type="submit" variant="primary" disabled={busy || !password}>Sign in</Button>
-      <Button type="button" disabled={busy || !email.includes('@')} onClick={() => run(async () => {
+      {!isLocal && <Button type="button" disabled={busy || !email.includes('@')} onClick={() => run(async () => {
         const result = await supabase.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: false, emailRedirectTo: window.location.origin } });
         if (!result.error) setMessage('Check your email for the sign-in link. Open it in this browser.');
         return result;
-      })}>Email me a sign-in link</Button>
+      })}>Email me a sign-in link</Button>}
     </form>{error && <p className="form-error" role="alert">{error}</p>}{message && <p role="status">{message}</p>}
-    <p className="local-access-note">Supabase Auth · Only enabled staff can read member information. Local browser accounts do not grant access.</p>
+    {!isLocal && <p className="local-access-note">Only enabled staff can access this workspace.</p>}
   </section></main>;
 }
