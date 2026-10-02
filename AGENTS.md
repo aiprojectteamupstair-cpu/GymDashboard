@@ -4,6 +4,8 @@ Last updated: 2026-10-02. Business: The Community Fitness By Strategy First Gym.
 
 ## October 2 local PostgreSQL (supersedes active-entry/backend notes below)
 
+- Follow-up network check: [October 2 results](docs/SUPABASE_NETWORK_2026_10_02.md). Requested `snbfdktwrgzhwjqmyhdz` endpoint resolves consistently through system/public DNS, but both gateway IPs time out on TCP 443 over Ethernet with visible TAP VPN adapters disconnected. No HTTP 401/no-key response received. Missing opt-in Vite proxy fixed; hosted proxy target mismatch now fails the build. 59 tests/lint/build pass; remote network access remains unresolved. Do not switch the approved project to the diagnostic host.
+
 - User selected a separate local PostgreSQL database; hosted Vercel builds will use Supabase via environment variables. `npm run dev` defaults to the local backend; production builds default to Supabase and require explicit URL/publishable key. See [local setup](docs/LOCAL_POSTGRES.md).
 - Active UI remains `src/supabase/LiveApp.jsx`, now sharing the local API client or Supabase client based on environment. Local mode uses server-verified login, HttpOnly sessions and real PostgreSQL, not browser-storage authentication.
 - Project-local PostgreSQL 18.4 listens on 127.0.0.1:55432, database `community_fitness_local`; private persistent files and generated DB credentials are under ignored `.local-db/`. Vite denies HTTP access to that folder and private import files. Never delete this folder to restart.

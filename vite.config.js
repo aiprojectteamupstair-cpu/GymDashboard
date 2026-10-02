@@ -1,6 +1,8 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import process from 'node:process';
+import { readFileSync } from 'node:fs';
+import { supabaseRouting } from './config/supabase-routing.mjs';
 
 export default defineConfig(async ({ command, mode }) => {
   const env = loadEnv(mode, '.', '');
@@ -8,11 +10,13 @@ export default defineConfig(async ({ command, mode }) => {
   if (!['local', 'supabase'].includes(backend)) throw new Error('VITE_DATA_BACKEND must be local or supabase.');
   if (command === 'build' && backend !== 'supabase') throw new Error('Local PostgreSQL is served by npm run dev. Production builds require VITE_DATA_BACKEND=supabase.');
   if (backend === 'supabase' && (!env.VITE_SUPABASE_PUBLISHABLE_KEY || (!env.VITE_SUPABASE_URL && env.VITE_SUPABASE_USE_SAME_ORIGIN_PROXY !== 'true'))) throw new Error('Set the Supabase URL and publishable key in the environment.');
+  const proxy = backend === 'supabase' ? supabaseRouting(env, command, JSON.parse(readFileSync(new URL('./vercel.json', import.meta.url), 'utf8')).rewrites) : {};
   return {
   plugins: [react(), ...(command === 'serve' && backend === 'local' ? [(await import('./server/local/vite-plugin.mjs')).localDatabasePlugin()] : [])],
   define: { 'import.meta.env.VITE_DATA_BACKEND': JSON.stringify(backend) },
   server: {
     host: '127.0.0.1', port: 3000, strictPort: false,
+    proxy,
     fs: { deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**', '**/.local-db/**', '**/.private-imports/**'] },
   },
   build: {
