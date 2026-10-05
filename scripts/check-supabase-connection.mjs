@@ -2,10 +2,10 @@ import { lookup } from 'node:dns/promises';
 import { loadEnv } from 'vite';
 import { backendConfig, SUPABASE_PROJECT_REF } from '../config/backend.mjs';
 
-const env = { ...loadEnv('supabase', process.cwd(), ''), ...process.env };
-const config = backendConfig(env);
-if (config.mode !== 'supabase') throw new Error('Supabase mode is required for this diagnostic.');
-const origin = new URL(process.argv[2] || env.SUPABASE_RELAY_ORIGIN || 'http://127.0.0.1:3001');
+const env = { ...loadEnv('production', process.cwd(), ''), ...process.env };
+const config = backendConfig({ ...env, VITE_BACKEND: 'supabase' });
+if (!process.argv[2]) throw new Error('Provide the dashboard URL: npm run check:supabase -- https://YOUR-DASHBOARD.vercel.app');
+const origin = new URL(process.argv[2]);
 if (origin.username || origin.password || origin.search || origin.hash || origin.pathname !== '/' ||
     (origin.protocol !== 'https:' && !(origin.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(origin.hostname)))) {
   throw new Error('Use an HTTPS dashboard origin or an HTTP localhost origin.');

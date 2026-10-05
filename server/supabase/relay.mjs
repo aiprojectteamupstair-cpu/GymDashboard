@@ -18,7 +18,7 @@ function permitted(path, method, query) {
   return method === 'POST' && ['functions/v1/gym-commands', 'functions/v1/admin-accounts'].includes(path);
 }
 
-async function readBody(request) {
+export async function readBody(request) {
   if (!request.body) return undefined;
   const reader = request.body.getReader();
   const parts = [];

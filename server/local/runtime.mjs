@@ -1,12 +1,27 @@
 import { mkdir, readFile, writeFile, access, unlink } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import { randomBytes } from 'node:crypto';
 import pg from 'pg';
 import { initializeDatabase } from './database.mjs';
 
 const run = promisify(execFile);
+// pg_ctl can pass inherited pipes to the background PostgreSQL process on
+// Windows. Waiting for those pipes to close leaves startup pending indefinitely.
+const controlDatabase = (file, args) => new Promise((resolveControl, reject) => {
+  const child = spawn(file, args, { windowsHide: true, stdio: 'ignore' });
+  const timer = setTimeout(() => {
+    child.kill();
+    reject(new Error('PostgreSQL control timed out. Check .local-db/postgres.log.'));
+  }, 40000);
+  child.once('error', error => { clearTimeout(timer); reject(error); });
+  child.once('exit', code => {
+    clearTimeout(timer);
+    if (code === 0) resolveControl();
+    else reject(new Error(`PostgreSQL control failed (${code}). Check .local-db/postgres.log.`));
+  });
+});
 export const root = resolve('.local-db');
 const directory = join(root,'postgres');
 const configFile = join(root,'connection.json');
@@ -30,8 +45,8 @@ export async function startDatabase() {
       await run(initdb,['-D',directory,'-U',config.user,'--auth=scram-sha-256',`--pwfile=${passwordFile}`,'--encoding=UTF8','--locale=C'],{windowsHide:true});
     } finally { await unlink(passwordFile); }
   }
-  const running=await run(pg_ctl,['status','-D',directory],{windowsHide:true}).then(()=>true,()=>false);
-  if (!running) await run(pg_ctl,['start','-D',directory,'-l',join(root,'postgres.log'),'-o',`-h 127.0.0.1 -p ${Number(config.port)}`,'-w','-t','30'],{windowsHide:true});
+  const running=await controlDatabase(pg_ctl,['status','-D',directory]).then(()=>true,()=>false);
+  if (!running) await controlDatabase(pg_ctl,['start','-D',directory,'-l',join(root,'postgres.log'),'-o',`-h 127.0.0.1 -p ${Number(config.port)}`,'-w','-t','30']);
   const admin=new pg.Client({...config,database:'postgres',connectionTimeoutMillis:5000});
   await admin.connect();
   try {
@@ -54,5 +69,5 @@ export async function startDatabase() {
 export async function stopDatabase() {
   if (!await exists(join(directory,'PG_VERSION'))) return;
   const { pg_ctl }=await binaries();
-  await run(pg_ctl,['stop','-D',directory,'-m','fast','-w','-t','30'],{windowsHide:true});
+  await controlDatabase(pg_ctl,['stop','-D',directory,'-m','fast','-w','-t','30']);
 }

@@ -2,6 +2,39 @@
 
 Last updated: 2026-10-02. Business: The Community Fitness By Strategy First Gym.
 
+## October 5 handover cleanup (supersedes older backend/env instructions)
+
+- Follow-up: user requested Vercel env credentials for the initial Super Admin.
+  `server/supabase/bootstrap.mjs` is imported ONLY by `api/supabase.js` and uses
+  `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD` (12–128) and `SUPABASE_SECRET_KEY`.
+  Normal Supabase authentication remains authoritative; existing passwords are
+  never reset. Exact configured credentials trigger initial Auth creation/linking.
+  Migration `20261005030000_super_admin_bootstrap.sql` adds a service-only atomic
+  RPC that verifies confirmed/non-deleted/non-banned Auth identity, preserves an
+  unlinked owner profile and blocks staff reassignment/reactivation. No cloud
+  migration/account/deployment performed; see [owner setup](docs/SUPER_ADMIN_SETUP.md).
+  Verified 78 unit tests, real PostgreSQL concurrency/access tests, lint/build and
+  browser-bundle exclusion. The whole initial-auth/create/link sequence is bounded
+  to 10 seconds and retries can resume an already-created identity.
+
+- Continue in English, as explicitly requested by the user.
+- User selected local PostgreSQL development and Supabase on Vercel production.
+  `npm run dev` always uses the existing local API/database, even when cloud env
+  settings exist. `npm run build` always selects Supabase and validates cloud config.
+- Root env files: committed `.env.example` and ignored `.env.local`. Vercel uses
+  its own `VITE_SUPABASE_URL` and public `VITE_SUPABASE_PUBLISHABLE_KEY` settings.
+  Do not restore `.env.supabase`, extra example files or a `VITE_BACKEND` env switch.
+- Production retains the fixed-project, limited `/supabase` relay for VPN-free
+  browser access. Local development does not depend on a hosted relay.
+  Production preview runs the relay locally and needs this PC's cloud reachability.
+  `SUPABASE_RELAY_ORIGIN` is removed. Local and cloud data/accounts stay independent.
+- No database records, Auth identities, grants or deployments were changed by
+  the cleanup. Do not claim cloud connectivity/authentication is verified.
+- Current setup: [development and deployment](docs/DEVELOPMENT.md).
+- Verified 72 tests, real PostgreSQL API integration, lint, both builds and local
+  HTTP backend/auth-denial smoke checks. Windows pg_ctl startup now avoids
+  inherited-pipe hangs and has a bounded control-command timeout.
+
 ## October 2 Supabase reconnection (supersedes disconnection and old target restrictions)
 
 - Latest user requirement: dashboard must work without a VPN. Browser Supabase SDK now uses same-origin `/supabase`, with the canonical project session-storage key. `api/supabase.js` and `server/supabase/relay.mjs` implement a fixed-project, route/method-limited Vercel relay; no privileged keys, credential/body logging, redirects or cached responses. Local Vite forwards only to `SUPABASE_RELAY_ORIGIN`; missing deployment returns 503, never a direct Supabase fallback. Vercel deployment is prepared but not deployed: no hosting login/link was available, and the Vercel plugin was suggested for installation/connection. 71 tests/lint/build and synthetic browser same-origin checks passed. Real VPN-free access remains unverified until deployment and endpoint checks pass. See [VPN-free hosting](docs/VPN_FREE_HOSTING.md). Do not ask the user to use a VPN as the solution.

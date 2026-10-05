@@ -1,5 +1,8 @@
 # VPN-free dashboard hosting
 
+October 5 cleanup: [development and production](DEVELOPMENT.md) is the current
+setup. Local dev uses PostgreSQL; only production uses the relay.
+
 The dashboard now sends Auth, member reads and trusted write requests to its own
 website origin under `/supabase/`. The hosted server contacts the selected
 `snbfdktwrgzhwjqmyhdz` project. A visitor's browser never needs a direct connection
@@ -9,8 +12,10 @@ to `*.supabase.co` for these workflows.
 
 The repository has a Vercel Vite build configuration and a Web-standard Node
 function in `api/supabase.js`. `/supabase/:path*` rewrites to that function. The
-public project URL/key remain in `.env.supabase`; no privileged Supabase key is
-needed by the relay. Private environment files, local database, import folders
+public project URL/key are supplied by Vercel Environment Variables; no privileged Supabase key is
+needed by the regular relay. Optional [initial owner setup](SUPER_ADMIN_SETUP.md)
+uses a server-only secret key in a separate bootstrap module imported by the
+Vercel function; the regular relay never forwards it. Private environment files, local database, import folders
 and workbooks are excluded by `.vercelignore`.
 
 Deploy the existing repository to the user's Vercel account. This task found no
@@ -21,15 +26,11 @@ from the user's current network.
 
 ## Local development
 
-Once the hosted URL is verified, set `SUPABASE_RELAY_ORIGIN` in the ignored
-`.env.supabase.local` to that exact HTTPS origin, without a path. An example is
-in `.env.supabase.local.example`. Vite dev and preview then forward `/supabase`
-to the hosted website, which connects to Supabase remotely. Restart Vite after
-changing this setting. The hosted site itself needs no relay-origin setting.
-
-Without a relay origin the local app reports a setup error immediately. It does
-not use this computer's failing outbound Supabase route. Local PostgreSQL remains
-available through the explicit local commands and is not an automatic fallback.
+`npm run dev` starts the independent local PostgreSQL database and API, without
+cloud requests. No relay-origin variable or deployed site is required.
+`npm run build` / `npm run preview` tests the cloud production bundle locally;
+preview executes the same relay handler on this PC, so its outbound Supabase
+route must be reachable. Test Vercel connectivity on the deployed website.
 
 ## Boundaries
 
@@ -64,8 +65,7 @@ npm run check:supabase -- https://YOUR-DEPLOYED-DASHBOARD
 
 This checks the dashboard's proxied Auth health endpoint with the publishable
 key, verifies the selected project marker and JSON response, and sends no login
-password. Running without an argument uses the configured relay origin or the
-local dashboard at port 3001. A 503, HTML page or deployment-login redirect is
+password. A dashboard URL argument is required. A 503, HTML page or deployment-login redirect is
 not a successful connection. Then verify the real owner login, paginated reads
 and authorized write workflows without VPN. No live login success is claimed.
 

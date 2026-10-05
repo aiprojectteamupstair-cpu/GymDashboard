@@ -1,12 +1,12 @@
 # Local PostgreSQL workspace
 
-Supabase is now the default dashboard backend. Use `npm run dev:local` for this
-independent local database, or `npm run build:local` then `npm run preview:local`
-for its built preview in `dist-local/`. See the current
-[Supabase connection status](SUPABASE_RECONNECTION_2026_10_02.md).
+Local PostgreSQL is the default development backend: use `npm run dev`.
+`npm run build` produces the Supabase app for Vercel. The optional
+`npm run build:local` / `npm run preview:local` commands use `dist-local/`.
+See the current [development and deployment guide](DEVELOPMENT.md).
 
 The development app now uses its own PostgreSQL database and server-verified
-email/password login. `npm run dev:local` starts the database and the Vite API together.
+email/password login. `npm run dev` starts the database and the Vite API together.
 The terminal prints the available website URL, starting at port 3000.
 No Supabase account or internet connection is needed after dependencies install.
 

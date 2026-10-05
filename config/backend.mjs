@@ -17,11 +17,8 @@ export function browserSupabaseUrl(origin) {
   return new URL('/supabase', origin).href;
 }
 
-export function relayOrigin(value) {
-  if (!value) return null;
-  const url = new URL(value);
-  if (url.protocol !== 'https:' || url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
-    throw new Error('SUPABASE_RELAY_ORIGIN must be an HTTPS website origin without credentials or a path.');
-  }
-  return url.origin;
+export function workspaceBackend(env, { command, mode, isPreview = false }) {
+  // Commands select the backend; a developer's cloud settings cannot redirect dev.
+  const local = mode === 'localdb' || (command === 'serve' && !isPreview);
+  return backendConfig({ ...env, VITE_BACKEND: local ? 'local' : 'supabase' });
 }

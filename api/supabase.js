@@ -1,3 +1,3 @@
-import { createSupabaseRelay } from '../server/supabase/relay.mjs';
+import { createHostedSupabaseRelay } from '../server/supabase/bootstrap.mjs';
 
-export default { fetch: createSupabaseRelay() };
+export default { fetch: createHostedSupabaseRelay() };

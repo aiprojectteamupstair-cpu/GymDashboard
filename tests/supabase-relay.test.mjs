@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSupabaseRelay } from '../server/supabase/relay.mjs';
-import { browserSupabaseUrl, relayOrigin } from '../config/backend.mjs';
+import { browserSupabaseUrl } from '../config/backend.mjs';
+import { createServer } from 'node:http';
 import { supabaseRelayPlugin } from '../server/supabase/vite-plugin.mjs';
 
 const headers = { apikey: 'sb_publishable_test', Authorization: 'Bearer synthetic-user-token' };
@@ -10,10 +11,6 @@ const req = (path, options = {}) => new Request(`https://gym.example${path}`, { 
 test('browser Auth, reads and functions use the website origin', () => {
   assert.equal(browserSupabaseUrl('https://gym.example'), 'https://gym.example/supabase');
   assert.equal(browserSupabaseUrl('http://127.0.0.1:3001'), 'http://127.0.0.1:3001/supabase');
-  assert.equal(relayOrigin('https://gym.example/'), 'https://gym.example');
-  for (const url of ['http://gym.example', 'https://user:secret@gym.example', 'https://gym.example/path', 'https://gym.example/?target=other']) {
-    assert.throws(() => relayOrigin(url), /HTTPS website origin/);
-  }
 });
 
 test('relay preserves login payload and status without forwarding cookies or caching tokens', async () => {
@@ -94,11 +91,28 @@ test('both trusted write APIs and refresh/logout stay on the selected project', 
   }
 });
 
-test('local dev uses the hosted relay and never silently falls back to direct Supabase', () => {
-  const plugin = supabaseRelayPlugin({ SUPABASE_RELAY_ORIGIN: 'https://gym.example' });
-  assert.equal(plugin.config().server.proxy['/supabase'].target, 'https://gym.example');
-  assert.equal(plugin.config().preview.proxy['/supabase'].secure, true);
+test('production preview executes the relay with real HTTP bodies and leaves other routes alone', async () => {
+  const plugin = supabaseRelayPlugin(createSupabaseRelay(async (url, options) => {
+    assert.equal(new URL(url).hostname, 'snbfdktwrgzhwjqmyhdz.supabase.co');
+    assert.deepEqual(JSON.parse(new TextDecoder().decode(options.body)), { synthetic: true });
+    return Response.json({ ok: true });
+  }));
+  assert.equal(plugin.configureServer, undefined);
   let middleware;
-  supabaseRelayPlugin({}).configureServer({ middlewares: { use: (_path, handler) => { middleware = handler; } } });
-  middleware({}, { writeHead: status => assert.equal(status, 503), end: body => assert.match(body, /not configured/) });
+  plugin.configurePreviewServer({ middlewares: { use: handler => { middleware = handler; } } });
+  const server = createServer((req, res) => middleware(req, res, () => { res.writeHead(404); res.end(); }));
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const response = await fetch(`${origin}/supabase/auth/v1/token?grant_type=password`, {
+      method: 'POST', headers, body: JSON.stringify({ synthetic: true }),
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { ok: true });
+    assert.equal(response.headers.get('Cache-Control'), 'private, no-store');
+    assert.equal((await fetch(`${origin}/api/local/workspace`)).status, 404);
+  } finally {
+    server.closeAllConnections();
+    await new Promise(resolve => server.close(resolve));
+  }
 });

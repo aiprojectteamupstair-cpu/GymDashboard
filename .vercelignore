@@ -1,6 +1,7 @@
 .git/
 .local-db/
 .private-imports/
+.env
 .env.local
 .env.*.local
 node_modules/

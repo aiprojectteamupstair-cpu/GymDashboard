@@ -1,5 +1,8 @@
 # TCF User's Database connection
 
+Historical October 2 status. Backend commands and env files are superseded by
+the [October 5 development and production setup](DEVELOPMENT.md).
+
 Latest: the user requires VPN-free access. [Hosted relay implementation and
 deployment status](VPN_FREE_HOSTING.md) supersedes direct-browser networking
 below. Hosting is prepared but not yet deployed; real connectivity is unverified.

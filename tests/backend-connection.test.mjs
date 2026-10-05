@@ -1,8 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { backendConfig } from '../config/backend.mjs';
+import { backendConfig, workspaceBackend } from '../config/backend.mjs';
 import { createAdminHandler } from '../supabase/functions/admin-accounts/handler.js';
 import { createCommandHandler } from '../supabase/functions/gym-commands/handler.js';
+
+test('development uses PostgreSQL even with cloud env; production requires cloud configuration', () => {
+  const env = { VITE_BACKEND: 'supabase', VITE_SUPABASE_URL: 'https://snbfdktwrgzhwjqmyhdz.supabase.co', VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test' };
+  assert.deepEqual(workspaceBackend({}, { command: 'serve', mode: 'development' }), { mode: 'local' });
+  assert.deepEqual(workspaceBackend(env, { command: 'serve', mode: 'development' }), { mode: 'local' });
+  assert.equal(workspaceBackend({ ...env, VITE_BACKEND: 'local' }, { command: 'build', mode: 'production' }).mode, 'supabase');
+  assert.equal(workspaceBackend(env, { command: 'serve', mode: 'production', isPreview: true }).mode, 'supabase');
+  assert.deepEqual(workspaceBackend({}, { command: 'build', mode: 'localdb' }), { mode: 'local' });
+  assert.deepEqual(workspaceBackend({}, { command: 'serve', mode: 'localdb', isPreview: true }), { mode: 'local' });
+  assert.throws(() => workspaceBackend({}, { command: 'build', mode: 'production' }), /selected/);
+});
 
 test('Supabase selection rejects mismatched projects and privileged keys', () => {
   const env = { VITE_BACKEND: 'supabase', VITE_SUPABASE_URL: 'https://snbfdktwrgzhwjqmyhdz.supabase.co', VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test' };
