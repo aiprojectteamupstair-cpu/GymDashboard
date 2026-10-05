@@ -200,7 +200,7 @@ test('Admin cannot edit catalogue details and snapshots survive status changes',
   const input = { member_id: member.id, package_id: pack.id, plan_id: 'plan-6', discount_id: discount.id, start_date: '2026-01-31' };
   const original = repository.addMembership(input).membership;
   assert.equal(original.calculated_end_date, '2026-07-31');
-  assert.throws(() => repository.saveCatalogue('packages', { ...pack, label: 'Updated Gym' }, pack.id), /Only Super Admin/);
+  assert.throws(() => repository.saveCatalogue('packages', { ...pack, label: 'Updated Gym' }, pack.id), /Only Admin/);
   repository.setCatalogueStatus('packages', pack.id, false);
   assert.throws(() => repository.addMembership(input), /active package/);
   repository.setCatalogueStatus('packages', pack.id, true);

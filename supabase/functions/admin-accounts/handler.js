@@ -20,7 +20,7 @@ export function createAdminHandler({ userClient, adminClient }) {
       if (authError || !identity?.user) return reply(401, { error: 'Please sign in again.' });
       const { data: staff, error: staffError } = await caller.from('app_staff').select('id,role_code,enabled,deleted_at')
         .eq('user_id', identity.user.id).eq('enabled', true).is('deleted_at', null).maybeSingle();
-      if (staffError || !staff || staff.role_code !== 'super_admin') return reply(403, { error: 'Super Admin access required.' });
+      if (staffError || !staff || staff.role_code !== 'super_admin') return reply(403, { error: 'Admin access required.' });
       const raw = await request.text();
       if (raw.length > 4096) return reply(413, { error: 'Request too large.' });
       let body;
@@ -29,21 +29,21 @@ export function createAdminHandler({ userClient, adminClient }) {
       if (body.action === 'create' && (typeof body.name !== 'string' || !body.name.trim() || body.name.trim().length > 120 ||
         typeof body.email !== 'string' || body.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email.trim()) ||
         typeof body.password !== 'string' || body.password.length < 6 || body.password.length > 128 ||
-        (body.role && body.role !== 'admin'))) return reply(400, { error: 'Enter a name, valid email and a password of 6–128 characters. Only Admin accounts can be created.' });
+        (body.role && body.role !== 'admin'))) return reply(400, { error: 'Enter a name, valid email and a password of 6–128 characters. Only Staff accounts can be created.' });
       const admin = adminClient();
       if (body.action === 'delete') {
-        if (!/^[0-9a-f-]{36}$/i.test(body.id || '')) return reply(400, { error: 'Choose an Admin account.' });
+        if (!/^[0-9a-f-]{36}$/i.test(body.id || '')) return reply(400, { error: 'Choose an Staff account.' });
         const disabled = await admin.rpc('disable_admin_account', { actor_auth_id: identity.user.id, target_staff_id: body.id });
-        if (disabled.error) return reply(403, { error: 'Unable to remove this account. Only another Admin may be removed.' });
+        if (disabled.error) return reply(403, { error: 'Unable to remove this account. Only another Staff may be removed.' });
         const removal = disabled.data ? await admin.auth.admin.deleteUser(disabled.data) : { error: null };
-        return reply(200, { deleted: true, warning: removal.error ? 'Access revoked. Auth cleanup needs review by the Super Admin.' : null });
+        return reply(200, { deleted: true, warning: removal.error ? 'Access revoked. Auth cleanup needs review by the Admin.' : null });
       }
       if (body.action === 'list') {
         const accounts = [];
         for (let start = 0; ; start += 100) {
           const { data, error } = await admin.from('app_staff').select('id,user_id,display_name,role_code,enabled,deleted_at')
             .is('deleted_at', null).order('id').range(start, start + 99);
-          if (error) return reply(503, { error: 'Unable to load Admin accounts.' });
+          if (error) return reply(503, { error: 'Unable to load Staff accounts.' });
           for (const row of data) {
             const identity = row.user_id ? await admin.auth.admin.getUserById(row.user_id) : null;
             accounts.push({ id: row.id, display_name: row.display_name, role_code: row.role_code, enabled: row.enabled, email: identity?.data?.user?.email || null });
@@ -65,7 +65,7 @@ export function createAdminHandler({ userClient, adminClient }) {
           const cleanup = await admin.auth.admin.deleteUser(userId);
           if (!cleanup.error) return reply(503, { error: 'Staff setup failed. The newly created sign-in was rolled back. Please retry.' });
         }
-        return reply(503, { error: 'Account setup could not be confirmed. Contact the Super Admin before retrying.' });
+        return reply(503, { error: 'Account setup could not be confirmed. Contact the Admin before retrying.' });
       }
       return reply(201, { created: true });
     } catch {

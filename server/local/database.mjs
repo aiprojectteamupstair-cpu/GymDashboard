@@ -80,6 +80,7 @@ export async function runCommand(db, actor, command, payload, requestId) {
     case 'membership.add': result = repo.addMembership(p); break;
     case 'attendance.checkin': result = repo.checkIn(p.id, p.acknowledged, p.time); break;
     case 'attendance.time': result = repo.updateAttendanceTime(p.id, p); break;
+    case 'attendance.calendar': result = repo.editAttendanceCalendar(p); break;
     case 'catalogue.save': result = repo.saveCatalogue(p.kind, p, p.id); break;
     case 'catalogue.status':
       if (!['packages', 'discounts'].includes(p.kind)) throw new Error('Unknown catalogue.');

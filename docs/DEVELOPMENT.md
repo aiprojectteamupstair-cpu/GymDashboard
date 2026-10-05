@@ -2,6 +2,46 @@
 
 Current handover workflow, October 5, 2026. This supersedes older backend setup notes.
 
+## Roles and attendance calendar
+
+Account labels are now Admin (stored `super_admin`) and Staff (stored `admin`).
+Existing identities, passwords, role codes and Staff permissions are unchanged.
+The repeated workspace record-count notice and duplicate sidebar role line are removed.
+Dashboard attendance follow-up now sits between the weekly chart and community breakdown.
+
+Admin can open Members -> member profile -> Edit attendance and mark past Myanmar
+dates, enter a time for each new visit, and supply a reason. Existing visits can
+be voided, restored or have their time corrected. Today uses the existing check-in
+flow. Batches are atomic, limited to 32 dates, protected against stale updates and
+safe to retry. Voids retain the row; restoration reuses its ID. Original times,
+snapshots and import provenance are preserved. New historical visits use the
+member's current code/category snapshot, not an inferred historical category;
+no membership eligibility or Guest trial is fabricated for a retrospective edit.
+Staff retains the existing time-correction workflow but cannot use the new calendar.
+
+Cloud migration `20261005084758_admin_attendance_calendar` is applied on
+`snbfdktwrgzhwjqmyhdz`; the command and account endpoints are deployed with JWT
+verification enabled. Browser roles cannot call the calendar RPC directly.
+No existing business records or Auth identities were changed. A rollback-only
+cloud test passed add/retry/void/restore. The updated Vercel frontend still needs
+deployment and real authenticated browser acceptance. Security advisor reports
+the existing leaked-password-protection warning; its setting was not changed.
+
+Verification: 86 unit tests, lint, production/local builds, isolated real
+PostgreSQL API and calendar SQL tests, and synthetic-API desktop/mobile browser
+checks (including Staff restriction, drilldown and mobile saving). Run:
+
+```powershell
+npm test
+node --test server/local/api.test.mjs server/supabase/attendance-db.test.mjs
+node scripts/test-attendance-ui.mjs
+```
+
+The UI check requires Playwright and installed Microsoft Edge, with the local dev
+server running. `PLAYWRIGHT_MODULE` can point to a bundled Playwright `index.mjs`;
+`UI_URL` overrides the default `http://127.0.0.1:3000/`. It intercepts API calls
+with fictional records and never writes to either workspace database.
+
 ## Local development
 
 ```powershell

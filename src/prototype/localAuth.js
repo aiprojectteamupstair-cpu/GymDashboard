@@ -20,9 +20,9 @@ export function createLocalAuth(storage = window.localStorage, session = window.
     if (useDefaultSuperAdmin && data.default_super_admin_revision !== 1) {
       const username = 'admin@communityfitness.local';
       let row = data.accounts.find(account => account.role === 'super_admin');
-      if (data.accounts.some(account => account.username === username && account.id !== row?.id)) throw new Error('The default Super Admin username is already in use. Saved accounts have not been replaced.');
+      if (data.accounts.some(account => account.username === username && account.id !== row?.id)) throw new Error('The default Admin username is already in use. Saved accounts have not been replaced.');
       if (!row) {
-        row = { id:crypto.randomUUID(), display_name:'Super Admin', role:'super_admin', created_at:clock().toISOString() };
+        row = { id:crypto.randomUUID(), display_name:'Admin', role:'super_admin', created_at:clock().toISOString() };
         data.accounts.push(row);
       }
       // Apply the requested local credential change once, preserving identity and history.
@@ -43,7 +43,7 @@ export function createLocalAuth(storage = window.localStorage, session = window.
   function requireUser(role) {
     const user = currentUser();
     if (!user) throw new Error('Please sign in again to continue.');
-    if (role && user.role !== role) throw new Error('Only Super Admin can perform this action.');
+    if (role && user.role !== role) throw new Error('Only Admin can perform this action.');
     return user;
   }
   function startSession(row) {
@@ -51,7 +51,7 @@ export function createLocalAuth(storage = window.localStorage, session = window.
     return publicUser(row);
   }
   async function create(input, initial = false) {
-    if (initial && read().accounts.length > 0) throw new Error('Super Admin has already been set up.');
+    if (initial && read().accounts.length > 0) throw new Error('Admin has already been set up.');
     if (!initial) requireUser('super_admin');
     const username = input.username?.trim().toLowerCase();
     const name = input.display_name?.trim();
@@ -63,7 +63,7 @@ export function createLocalAuth(storage = window.localStorage, session = window.
     // Re-read after hashing so another tab's account changes are not overwritten.
     const actor = initial ? null : requireUser('super_admin');
     const data = read();
-    if (initial && data.accounts.length) throw new Error('Super Admin has already been set up.');
+    if (initial && data.accounts.length) throw new Error('Admin has already been set up.');
     if (data.accounts.some(a => a.username === username)) throw new Error('This username is already in use.');
     const row = { id:crypto.randomUUID(), username, display_name:name, role:initial ? 'super_admin' : 'admin', salt, password_hash, session_version:crypto.randomUUID(), created_at:clock().toISOString() };
     data.accounts.push(row);
@@ -89,7 +89,7 @@ export function createLocalAuth(storage = window.localStorage, session = window.
       const actor = requireUser('super_admin');
       const data = read();
       const row = data.accounts.find(a => a.id === id);
-      if (!row || row.role !== 'admin') throw new Error('Only Admin accounts can be deleted. The Super Admin account is kept.');
+      if (!row || row.role !== 'admin') throw new Error('Only Staff accounts can be deleted. The Admin account is kept.');
       data.accounts = data.accounts.filter(a => a.id !== id);
       data.audit.push({ action:'account.deleted', actor_id:actor.id, account:publicUser(row), occurred_at:clock().toISOString() });
       storage.setItem(AUTH_KEY, JSON.stringify(data));

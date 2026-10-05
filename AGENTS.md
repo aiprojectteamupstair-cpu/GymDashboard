@@ -2,6 +2,40 @@
 
 Last updated: 2026-10-02. Business: The Community Fitness By Strategy First Gym.
 
+## October 5 updated workbook import
+
+- User-authorized October 3 member and July-October attendance workbooks imported
+  into **TCF User's Database**, `snbfdktwrgzhwjqmyhdz`. Totals: 455 members,
+  539 memberships, 22 PT purchases, 5,432 attendance. Added 32/55/0/1,083;
+  updated 52 profiles and filled one previously unknown membership expiry.
+- C123 remains deleted. Prior confirmed C123/C124 attendance resolution retained.
+  G008 converted to E062 on its stable UUID; former codes/history retained.
+  Conflicting source G72-G75 allocated G084-G087 without stealing existing codes.
+  Unconfirmed blank-ID/spelling matches remain separate with review remarks.
+- All 4,349 old visits, 483 other memberships and 22 PT purchases verified unchanged.
+  New visits are date-only (`import_date_only`), not fabricated arrival times.
+  Unclear marks do not become visits; prior data absent from source is not deleted.
+  No Auth/schema/grant/deployment/local DB changes. Private backups and replay-safe
+  SQL remain ignored. See [import report](docs/WORKBOOK_UPDATE_2026_10_05.md).
+
+## October 5 roles, dashboard and attendance calendar
+
+- UI role names are Admin (`super_admin`) and Staff (`admin`). Keep persisted role
+  codes and existing Staff authority unchanged. Removed global loaded-records
+  notice and duplicate sidebar role. Attendance metrics now sit between the weekly
+  chart and community breakdown with responsive follow-up rows.
+- Admin-only member-profile calendar supports reasoned past-day add, void, restore
+  and time correction in atomic batches. New visits require explicit Myanmar time;
+  today remains the ordinary check-in flow. Retain original timestamps, snapshots,
+  provenance, voided rows and audit history. Stale writes and Staff requests fail.
+- Migration `20261005084758_admin_attendance_calendar` and both Edge endpoints are
+  deployed on the approved project; JWT verification and service-only RPC remain.
+  Rollback-only cloud add/retry/void/restore passed; no real data/accounts changed.
+  Vercel frontend redeployment and real authenticated browser acceptance pending.
+- Verified 86 unit tests, lint, both builds, real PostgreSQL API/SQL isolation tests
+  and synthetic desktop/mobile browser flows. See docs/DEVELOPMENT.md. Security
+  advisor reports existing leaked-password protection disabled; not changed.
+
 ## October 5 handover cleanup (supersedes older backend/env instructions)
 
 - Hosted follow-up: user reports successful login followed by Workspace unavailable

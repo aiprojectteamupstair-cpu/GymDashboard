@@ -2,6 +2,7 @@ import { createEmptyData, retireLocalFixtures } from './dataLifecycle.js';
 import { categoryLabel, currentMembership, localDate, validDate } from './domain.js';
 import { CATEGORIES, nextMemberCode, upgradeData } from './catalogue.js';
 import { appendMembership } from './membershipService.js';
+import { applyAttendanceCalendar } from './attendanceCalendarService.js';
 
 export const STORAGE_KEY = 'community-fitness:prototype:v1';
 export const RELEASE_BACKUP_KEY = `${STORAGE_KEY}:before-real-members-v1`;
@@ -108,7 +109,7 @@ export function createPrototypeRepository(storage = window.localStorage, clock =
     },
     saveCatalogue(kind, input, id = null) {
       if (!['packages', 'discounts'].includes(kind)) throw new Error('Unknown catalogue.');
-      if (id && getActor()?.role !== 'super_admin') throw new Error('Only Super Admin can edit saved catalogue details.');
+      if (id && getActor()?.role !== 'super_admin') throw new Error('Only Admin can edit saved catalogue details.');
       return transaction(`${kind}.${id ? 'updated' : 'created'}`, (next, now) => {
         const existing = id ? next[kind].find(row => row.id === id) : null;
         if (id && !existing) throw new Error('Record no longer exists.');
@@ -137,6 +138,9 @@ export function createPrototypeRepository(storage = window.localStorage, clock =
         row.enabled = Boolean(enabled); row.updated_at = now;
         return { entity_type: kind, entity_id: id, row, changes: { before, enabled: row.enabled } };
       });
+    },
+    editAttendanceCalendar(input) {
+      return transaction('attendance.calendar', (next, now) => applyAttendanceCalendar(next, input, getActor(), now));
     },
     updateAttendanceTime(id, input) {
       return transaction('attendance.time_corrected', (next, now) => {

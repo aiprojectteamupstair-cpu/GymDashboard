@@ -6,7 +6,7 @@ import { createWorkspaceSync } from './workspaceSync.js';
 import AdminAccounts from './AdminAccounts.jsx';
 import LiveDialogs from './LiveDialogs.jsx';
 import { createCommandSender } from './commands.js';
-import { attendanceCoverage } from '../prototype/coverage.js';
+import { accountName } from '../roles.js';
 import { Analytics } from '../prototype/Analytics.jsx';
 import { SummaryDialog } from '../prototype/SummaryDialog.jsx';
 import { Button, Field } from '../prototype/components.jsx';
@@ -64,7 +64,6 @@ export default function LiveApp() {
 
   const { data, staff } = snapshot;
   const member = data.members.find(m => m.id === memberId);
-  const coverage = attendanceCoverage(data);
   const openModal = value => { setMutation({ busy: false, error: '' }); setModal(value); };
   async function save(command, payload) {
     if (saving.current) return;
@@ -81,7 +80,7 @@ export default function LiveApp() {
   }
   const navigate = next => { setPage(next); setMemberId(null); setError(''); window.scrollTo(0, 0); };
   const profile = id => { setPage('members'); setMemberId(id); setSummary(null); window.scrollTo(0, 0); };
-  const common = { data, today, onProfile: profile, onRenew: id => openModal({ type: 'membership', id }), onCheckIn: id => openModal({ type: 'checkin', id }), onEditAttendance: row => openModal({ type: 'attendance-edit', row }) };
+  const common = { data, today, onProfile: profile, onRenew: id => openModal({ type: 'membership', id }), onCheckIn: id => openModal({ type: 'checkin', id }), onEditAttendance: row => openModal({ type: 'attendance-edit', row }), onManageAttendance: staff.role_code === 'super_admin' ? (id, month) => openModal({ type: 'attendance-calendar', id, month }) : undefined };
   async function exportData(scope) {
     const owner = sync.current().owner;
     try {
@@ -93,11 +92,11 @@ export default function LiveApp() {
   return <div className="app-shell live-shell">
     <a className="skip-link" href="#main-content">Skip to main content</a>
     <aside className="sidebar"><button className="brand" onClick={() => navigate('dashboard')}><img src="/community-fitness-logo.png" alt="The Community Fitness by Strategy First" /></button>
-      <nav aria-label="Main navigation">{[['dashboard', 'Dashboard', LayoutDashboard], ['members', 'Members', Users], ['checkin', 'Check-in', CalendarCheck2], ['analytics', 'Analytics', Activity], ['catalogue', 'Packages & Discounts', Settings2], ...(staff.role_code === 'super_admin' ? [['accounts', 'Admin accounts', ShieldCheck]] : [])].map(([id, label, Icon]) => <button key={id} className={`nav-item ${page === id ? 'nav-active' : ''}`} aria-current={page === id ? 'page' : undefined} onClick={() => navigate(id)}><Icon size={19} />{label}</button>)}</nav>
-      <div className="sidebar-bottom"><strong>{staff.display_name}</strong><p>{staff.role_code === 'super_admin' ? 'Super Admin' : 'Admin'}</p></div>
+      <nav aria-label="Main navigation">{[['dashboard', 'Dashboard', LayoutDashboard], ['members', 'Members', Users], ['checkin', 'Check-in', CalendarCheck2], ['analytics', 'Analytics', Activity], ['catalogue', 'Packages & Discounts', Settings2], ...(staff.role_code === 'super_admin' ? [['accounts', 'Staff accounts', ShieldCheck]] : [])].map(([id, label, Icon]) => <button key={id} className={`nav-item ${page === id ? 'nav-active' : ''}`} aria-current={page === id ? 'page' : undefined} onClick={() => navigate(id)}><Icon size={19} />{label}</button>)}</nav>
+      <div className="sidebar-bottom"><strong>{accountName(staff)}</strong></div>
     </aside>
     <div className="main-shell"><header className="topbar"><strong>{backendMode === 'local' ? 'Local workspace' : 'Gym workspace'}</strong><div className="topbar-actions"><Button disabled={busy} onClick={refresh}><RefreshCw size={17} />{busy ? 'Refreshing…' : 'Refresh'}</Button><Button aria-label="Toggle theme" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}</Button><Button onClick={logout}><LogOut size={17} />Sign out</Button></div></header>
-      <main className="main-content" id="main-content"><div className="scope-note"><strong>{data.members.length} members · {coverage.count.toLocaleString()} attendance records loaded</strong><p>{coverage.last ? `Recorded attendance: ${coverage.first} – ${coverage.last}. Latest recorded date is not a guarantee of complete coverage. Missing records do not prove absence.` : 'No attendance recorded yet.'}</p>{coverage.last && <Button onClick={() => navigate('analytics')}>View recorded attendance</Button>}</div>
+      <main className="main-content" id="main-content">
         {notice && <p role="status" className="soft-note">{notice}</p>}
         {(error || workspace.error) && <p role="alert" className="error-banner">{error || workspace.error}</p>}
         {page === 'dashboard' && <Dashboard {...common} onNavigate={navigate} onDrilldown={setSummary} />}

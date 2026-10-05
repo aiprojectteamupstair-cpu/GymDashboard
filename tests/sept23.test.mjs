@@ -28,12 +28,12 @@ test('local setup, password hashing, login and Admin account permissions', async
   assert.equal(auth.currentUser(),null);
   await auth.login('RECEPTION','another-test-password');
   assert.equal(auth.currentUser().role,'admin');
-  assert.throws(()=>auth.listAccounts(),/Only Super Admin/);
-  assert.throws(()=>auth.deleteAdmin(superAdmin.id),/Only Super Admin/);
-  await assert.rejects(()=>auth.createAdmin(owner),/Only Super Admin/);
+  assert.throws(()=>auth.listAccounts(),/Only Admin/);
+  assert.throws(()=>auth.deleteAdmin(superAdmin.id),/Only Admin/);
+  await assert.rejects(()=>auth.createAdmin(owner),/Only Admin/);
   const second=createLocalAuth(storage,store(),()=>now);
   await second.login(owner.username,owner.password);
-  assert.throws(()=>second.deleteAdmin(superAdmin.id),/Super Admin account is kept/);
+  assert.throws(()=>second.deleteAdmin(superAdmin.id),/Admin account is kept/);
   second.deleteAdmin(admin.id);
   assert.equal(auth.currentUser(),null,'Deletion revokes an already signed-in account');
   await assert.rejects(()=>auth.login('reception','another-test-password'),/incorrect/);
@@ -67,7 +67,7 @@ test('Super Admin edits preserve snapshots; Admin and signed-out mutations are r
   assert.equal(renewed.discount_snapshot.percentage,40);
   assert.throws(()=>repo.saveCatalogue('packages',{...pack,label:'Stale edit'},pack.id),/record changed/);
   actor={id:'admin-test',display_name:'Admin',role:'admin'};
-  assert.throws(()=>repo.saveCatalogue('packages',{...edited,label:'Denied'},pack.id),/Only Super Admin/);
+  assert.throws(()=>repo.saveCatalogue('packages',{...edited,label:'Denied'},pack.id),/Only Admin/);
   repo.setCatalogueStatus('packages',pack.id,false);
   repo.saveCatalogue('packages',{label:'New option',enabled:true});
   assert.equal(repo.getSnapshot().audit_events[0].actor_user_id,'admin-test');

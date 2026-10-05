@@ -1,5 +1,6 @@
 import { MemberForm, MembershipForm, CheckInDialog, CatalogueForm } from '../prototype/forms.jsx';
 import { AttendanceEditDialog } from '../prototype/AttendanceEditDialog.jsx';
+import { AttendanceCalendarDialog } from '../prototype/AttendanceCalendarDialog.jsx';
 import { Button, Dialog } from '../prototype/components.jsx';
 import { MutationContext } from '../prototype/mutationContext.js';
 
@@ -7,6 +8,7 @@ export default function LiveDialogs({ modal, data, today, onClose, onEditAttenda
   if (!modal) return null;
   const member = data.members.find(row => row.id === modal.id);
   return <MutationContext.Provider value={mutation}>
+    {modal.type === 'attendance-calendar' && member && <AttendanceCalendarDialog data={data} member={member} today={today} initialMonth={modal.month} onClose={onClose} onSave={values => save('attendance.calendar',values)}/>}
     {modal.type === 'member' && <MemberForm data={data} member={member} today={today} onClose={onClose} onSave={(values, id) => save('member.save', { ...values, id: id || null, expected_updated_at: member?.updated_at || null })} />}
     {modal.type === 'membership' && <MembershipForm data={data} memberId={modal.id} today={today} onClose={onClose} onSave={values => save('membership.add', values)} />}
     {modal.type === 'checkin' && member && <CheckInDialog data={data} member={member} today={today} onClose={onClose} onEditAttendance={onEditAttendance} onConfirm={(id, time) => save('attendance.checkin', { id, time, acknowledged: true })} />}

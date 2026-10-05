@@ -51,7 +51,7 @@ export async function loadLiveData(client, expectedUserId) {
   const { data: staff, error } = await client.from('app_staff').select('id,user_id,display_name,role_code,enabled,deleted_at')
     .eq('user_id', identity.user.id).eq('enabled', true).is('deleted_at', null).maybeSingle();
   if (error) throw error;
-  if (!staff) throw new Error('Your account does not have an enabled staff profile. Contact the Super Admin.');
+  if (!staff) throw new Error('Your account does not have an enabled staff profile. Contact the Admin.');
   const pairs = await Promise.all(Object.entries(COLUMNS).map(async ([table, columns]) => [table, await readAll(client, table, columns)]));
   // Check the role again after loading so a revoked profile cannot publish an in-flight result.
   const check = await client.from('app_staff').select('id').eq('id', staff.id).eq('enabled', true).is('deleted_at', null).maybeSingle();

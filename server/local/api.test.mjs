@@ -6,6 +6,7 @@ import pg from 'pg';
 import { initializeDatabase } from './database.mjs';
 import { createLocalApi, hashPassword } from './api.mjs';
 import { startDatabase, root } from './runtime.mjs';
+import { attendanceVersion } from '../../src/prototype/attendanceCalendarService.js';
 
 test('PostgreSQL local API: authentication, transactions, permissions, retries and persistence', async () => {
   const local=await startDatabase(); await local.end();
@@ -51,6 +52,16 @@ test('PostgreSQL local API: authentication, transactions, permissions, retries a
     assert.equal(staff.status,200);
     const receptionist=await request('login',{email:'reception@example.test',password:'test-password'});
     assert.equal((await request('admin-accounts',{action:'list'},receptionist.cookie)).status,403);
+    const calendar={member_id:member.id,reason:'Reception log verified',changes:[{date:'2026-01-02',present:true,time:'09:15',expected:null}]};
+    assert.equal((await command('attendance.calendar',calendar,crypto.randomUUID(),receptionist.cookie)).status,403);
+    const calendarId=crypto.randomUUID();
+    assert.equal((await command('attendance.calendar',calendar,calendarId)).status,200);
+    assert.equal((await command('attendance.calendar',calendar,calendarId)).status,200);
+    const visit=(await request('workspace',undefined,cookie)).body.data.attendance.find(row=>row.attendance_date==='2026-01-02');
+    const remove={...calendar,changes:[{date:'2026-01-02',present:false,expected:attendanceVersion(visit)}]};
+    const edits=await Promise.all([command('attendance.calendar',remove),command('attendance.calendar',remove)]);
+    assert.deepEqual(edits.map(row=>row.status).sort(),[200,400]);
+    assert.equal((await request('workspace',undefined,cookie)).body.data.attendance.filter(row=>row.attendance_date==='2026-01-02').length,1);
     assert.equal((await command('catalogue.save',{kind:'packages',id:'gym',label:'No permission',enabled:true},crypto.randomUUID(),receptionist.cookie)).status,400);
     assert.equal((await request('admin-accounts',{action:'delete',id:login.body.user.id},cookie)).status,400);
     assert.equal((await request('admin-accounts',{action:'delete',id:staff.body.account.id},cookie)).status,200);
@@ -58,7 +69,7 @@ test('PostgreSQL local API: authentication, transactions, permissions, retries a
     await initializeDatabase(pool,seed);
     const persisted=await request('workspace',undefined,cookie);
     assert.equal(persisted.body.data.members.length,1);
-    assert.equal(persisted.body.data.attendance.length,1);
+    assert.equal(persisted.body.data.attendance.length,2);
     const independent=new pg.Client({...config,database}); await independent.connect();
     assert.equal(Number((await independent.query('SELECT count(*) FROM gym_local.members')).rows[0].count),1);
     await independent.end();

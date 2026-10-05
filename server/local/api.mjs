@@ -59,11 +59,12 @@ export function createLocalApi(pool) {
         if (!actor) throw failure('Please sign in again.',401);
         if (path==='workspace' && req.method==='GET') return { data:await loadSnapshot(db), staff:publicAccount(actor) };
         if (path==='gym-commands' && req.method==='POST') {
+          if (body.command === 'attendance.calendar' && actor.role_code !== 'super_admin') throw failure('Only Admin can edit the attendance calendar.',403);
           if (!body.payload || typeof body.payload!=='object' || Array.isArray(body.payload)) throw failure('Invalid command payload.');
           return { result:await runCommand(db,actor,body.command,body.payload,body.request_id) };
         }
         if (path==='admin-accounts' && req.method==='POST') {
-          if (actor.role_code!=='super_admin') throw failure('Only Super Admin can manage accounts.',403);
+          if (actor.role_code!=='super_admin') throw failure('Only Admin can manage accounts.',403);
           if (body.action==='list') return { accounts:(await db.query('SELECT * FROM gym_local.accounts ORDER BY created_at')).rows.map(publicAccount) };
           let account;
           if (body.action==='create') {
@@ -77,7 +78,7 @@ export function createLocalApi(pool) {
               VALUES ($1,$2,$3,'admin',$4,$5) RETURNING *`,[crypto.randomUUID(),email,name,salt,hash])).rows[0];
           } else if (body.action==='delete') {
             account=(await db.query("DELETE FROM gym_local.accounts WHERE id=$1 AND role_code='admin' RETURNING *",[body.id])).rows[0];
-            if (!account) throw failure('Admin account not found. Super Admin cannot be deleted.');
+            if (!account) throw failure('Staff account not found. Admin cannot be deleted.');
           } else throw failure('Unknown account action.');
           await db.query('INSERT INTO gym_local.account_audit(id,actor_id,action,account) VALUES ($1,$2,$3,$4)',[crypto.randomUUID(),actor.id,`account.${body.action}`,JSON.stringify(publicAccount(account))]);
           return { account:publicAccount(account) };

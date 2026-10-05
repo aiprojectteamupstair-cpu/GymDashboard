@@ -5,7 +5,7 @@ import { createSupabaseRelay, readBody } from './relay.mjs';
 
 const origin = `https://${SUPABASE_PROJECT_REF}.supabase.co`;
 const equal = (a, b) => timingSafeEqual(createHash('sha256').update(a).digest(), createHash('sha256').update(b).digest());
-const failure = () => Response.json({ message: 'Super Admin setup could not be completed. Check the server environment and bootstrap migration. Existing accounts are not reset.' }, {
+const failure = () => Response.json({ message: 'Admin setup could not be completed. Check the server environment and bootstrap migration. Existing accounts are not reset.' }, {
   status: 503, headers: { 'Cache-Control': 'private, no-store', 'CDN-Cache-Control': 'no-store', 'Vercel-CDN-Cache-Control': 'no-store' },
 });
 
