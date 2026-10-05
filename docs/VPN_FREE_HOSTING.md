@@ -3,6 +3,12 @@
 October 5 cleanup: [development and production](DEVELOPMENT.md) is the current
 setup. Local dev uses PostgreSQL; only production uses the relay.
 
+Hosted workspace follow-up: the reported staff filter parse failure is addressed
+by removing legacy route-capture query metadata before forwarding to PostgREST.
+The rewrite capture now uses `__supabase_path` consistently. Deploy the updated
+`vercel.json` and relay together. 81 tests, lint/build and an SDK workspace load
+through simulated Vercel routing passed; real hosted acceptance remains pending.
+
 The dashboard now sends Auth, member reads and trusted write requests to its own
 website origin under `/supabase/`. The hosted server contacts the selected
 `snbfdktwrgzhwjqmyhdz` project. A visitor's browser never needs a direct connection

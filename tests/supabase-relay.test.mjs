@@ -4,6 +4,8 @@ import { createSupabaseRelay } from '../server/supabase/relay.mjs';
 import { browserSupabaseUrl } from '../config/backend.mjs';
 import { createServer } from 'node:http';
 import { supabaseRelayPlugin } from '../server/supabase/vite-plugin.mjs';
+import { createClient } from '@supabase/supabase-js';
+import { loadLiveData, COLUMNS } from '../src/supabase/readData.js';
 
 const headers = { apikey: 'sb_publishable_test', Authorization: 'Bearer synthetic-user-token' };
 const req = (path, options = {}) => new Request(`https://gym.example${path}`, { headers, ...options });
@@ -46,6 +48,74 @@ test('rewrite route preserves RLS read query, range and record totals', async ()
   }));
   assert.equal(response.status, 206);
   assert.equal(response.headers.get('Content-Range'), '500-500/501');
+});
+
+test('Vercel route captures never become staff filters while real RLS filters survive', async () => {
+  let calls = 0;
+  const relay = createSupabaseRelay(async url => {
+    calls++;
+    const target = new URL(url);
+    assert.equal(target.pathname, '/rest/v1/app_staff');
+    assert.equal(target.searchParams.has('__supabase_path'), false);
+    assert.equal(target.searchParams.has('path'), false);
+    assert.equal(target.searchParams.get('select'), 'id,user_id,enabled');
+    assert.equal(target.searchParams.get('user_id'), 'eq.synthetic-user');
+    assert.equal(target.searchParams.get('enabled'), 'eq.true');
+    assert.equal(target.searchParams.get('deleted_at'), 'is.null');
+    return Response.json([{ id: 'staff', user_id: 'synthetic-user', enabled: true }]);
+  });
+  const filters = 'select=id%2Cuser_id%2Cenabled&user_id=eq.synthetic-user&enabled=eq.true&deleted_at=is.null';
+  for (const path of [
+    `/supabase/rest/v1/app_staff?${filters}&path=rest%2Fv1%2Fapp_staff`,
+    `/api/supabase?${filters}&__supabase_path=rest%2Fv1%2Fapp_staff&path=rest%2Fv1%2Fapp_staff`,
+    `/api/supabase?${filters}&__supabase_path=rest%2Fv1%2Fapp_staff`,
+  ]) {
+    const response = await relay(req(path));
+    assert.equal(response.status, 200);
+    assert.equal((await response.json())[0].id, 'staff');
+  }
+  assert.equal(calls, 3);
+});
+
+test('SDK workspace load succeeds through a Vercel rewrite with the reported extra path parameter', async () => {
+  const staff = { id: 'staff-id', user_id: 'synthetic-user', display_name: 'Test owner', role_code: 'super_admin', enabled: true, deleted_at: null };
+  const tables = new Set();
+  const relay = createSupabaseRelay(async input => {
+    const url = new URL(input);
+    if (url.searchParams.has('path') || url.searchParams.has('__supabase_path')) {
+      return Response.json({ message: 'failed to parse filter (rest/v1/app_staff)' }, { status: 400 });
+    }
+    const table = url.pathname.slice('/rest/v1/'.length);
+    tables.add(table);
+    const rows = table === 'app_staff' ? [staff] : [];
+    return Response.json(rows, { headers: { 'Content-Range': rows.length ? '0-0/1' : '*/0' } });
+  });
+  const client = createClient('https://gym.example/supabase', 'sb_publishable_test', {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: async (input, options) => {
+      const url = new URL(input);
+      const path = url.pathname.slice('/supabase/'.length);
+      url.pathname = '/api/supabase';
+      url.searchParams.set('__supabase_path', path);
+      url.searchParams.set('path', path);
+      return relay(new Request(url, options));
+    } },
+  });
+  const result = await loadLiveData({
+    auth: { getUser: async () => ({ data: { user: { id: staff.user_id } }, error: null }) },
+    from: table => client.from(table),
+  }, staff.user_id);
+  assert.equal(result.staff.id, staff.id);
+  assert.deepEqual(result.data.members, []);
+  assert.deepEqual([...tables].sort(), ['app_staff', ...Object.keys(COLUMNS)].sort());
+});
+
+test('non-routing query values are preserved rather than silently removing filters', async () => {
+  const relay = createSupabaseRelay(async url => {
+    assert.equal(new URL(url).searchParams.get('path'), 'eq.saved-value');
+    return Response.json([]);
+  });
+  assert.equal((await relay(req('/supabase/rest/v1/members?path=eq.saved-value'))).status, 200);
 });
 
 test('relay refuses arbitrary targets, admin Auth, direct writes and oversized bodies', async () => {

@@ -4,6 +4,15 @@ Last updated: 2026-10-02. Business: The Community Fitness By Strategy First Gym.
 
 ## October 5 handover cleanup (supersedes older backend/env instructions)
 
+- Hosted follow-up: user reports successful login followed by Workspace unavailable
+  with `failed to parse filter (rest/v1/app_staff)`. Fixed a relay query leak:
+  legacy Vercel `path` capture matching the resolved route is stripped before
+  forwarding to PostgREST. Rewrite capture now uses the reserved
+  `__supabase_path` name, which the relay already removes. Real column filters,
+  RLS credentials and pagination are preserved. 81 tests, lint/build passed,
+  including SDK workspace loading through simulated Vercel routing. Updated
+  deployment and real authenticated workspace rendering remain unverified.
+
 - Follow-up: user requested Vercel env credentials for the initial Super Admin.
   `server/supabase/bootstrap.mjs` is imported ONLY by `api/supabase.js` and uses
   `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD` (12–128) and `SUPABASE_SECRET_KEY`.

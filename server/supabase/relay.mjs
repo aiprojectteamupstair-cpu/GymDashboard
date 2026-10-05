@@ -44,6 +44,10 @@ export function createSupabaseRelay(fetcher = globalThis.fetch, timeoutMs = 1000
     const path = url.pathname.startsWith('/supabase/')
       ? url.pathname.slice('/supabase/'.length) : url.searchParams.get('__supabase_path');
     url.searchParams.delete('__supabase_path');
+    // Older Vercel rewrites also inject the named :path capture into the query.
+    // PostgREST treats every unrecognized query key as a column filter, so a
+    // routing value such as path=rest/v1/app_staff must never reach the database.
+    if (url.searchParams.get('path') === path) url.searchParams.delete('path');
     if (!path || !permitted(path, request.method, url.searchParams)) return problem(404, 'API route not available.');
     const apiKey = request.headers.get('apikey');
     if (!apiKey?.startsWith('sb_publishable_')) return problem(401, 'A publishable API key is required.');
