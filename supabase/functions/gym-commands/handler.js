@@ -1,4 +1,6 @@
-export function createCommandHandler({ userClient, adminClient, allowedOrigins = ['http://127.0.0.1:3000', 'http://localhost:3000'] }) {
+import { allowedOrigins as configuredOrigins } from '../_shared/origins.js';
+
+export function createCommandHandler({ userClient, adminClient, allowedOrigins = configuredOrigins() }) {
   const commands = new Set(['member.save', 'member.archive', 'membership.add', 'attendance.checkin', 'attendance.time', 'catalogue.save', 'catalogue.status']);
   return async request => {
     const origin = request.headers.get('origin');

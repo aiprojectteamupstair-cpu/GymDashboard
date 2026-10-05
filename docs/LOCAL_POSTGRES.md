@@ -1,7 +1,12 @@
 # Local PostgreSQL workspace
 
+Supabase is now the default dashboard backend. Use `npm run dev:local` for this
+independent local database, or `npm run build:local` then `npm run preview:local`
+for its built preview in `dist-local/`. See the current
+[Supabase connection status](SUPABASE_RECONNECTION_2026_10_02.md).
+
 The development app now uses its own PostgreSQL database and server-verified
-email/password login. `npm run dev` starts the database and the Vite API together.
+email/password login. `npm run dev:local` starts the database and the Vite API together.
 The terminal prints the available website URL, starting at port 3000.
 No Supabase account or internet connection is needed after dependencies install.
 
@@ -34,29 +39,16 @@ The local database starts with approved reference catalogues and zero members.
 It does not import browser storage or remote member data. It is independent of
 the existing Supabase database; changes are not synchronized automatically.
 
-## Vercel
+## Historical disconnection
 
-Set these build environment variables in Vercel and redeploy:
+Before the subsequent reconnection request, Supabase connections were removed.
+That earlier change left remote databases and records intact. The current
+Supabase connection is documented above; explicit local mode still uses only
+`/api/local/` and this computer's PostgreSQL database.
 
-```text
-VITE_DATA_BACKEND=supabase
-VITE_SUPABASE_URL=<project URL>
-VITE_SUPABASE_PUBLISHABLE_KEY=<publishable key>
-VITE_SUPABASE_USE_SAME_ORIGIN_PROXY=false
-```
-
-Local development defaults to `local`; production builds default to `supabase`.
-For a local Supabase preview, set `VITE_DATA_BACKEND=supabase` explicitly.
-Do not set `VITE_DATA_BACKEND=local` on Vercel: this database/API runs on this PC,
-not in a static deployment. No service-role key or database password belongs in
-a `VITE_` variable. The existing hosted app keeps Supabase Auth, enabled staff
-checks, RLS and trusted functions. Local credentials do not create a hosted
-account. Switching environment does not migrate local records to Supabase.
-
-The existing `/supabase` Vercel rewrite is specific to the previously selected
-project. Keep the same-origin proxy disabled when using another project, or
-update the rewrite to match it. No deployment or remote database change was
-performed as part of this local setup.
+Use `npm run build:local` followed by `npm run preview:local` to run a built local preview,
+including its PostgreSQL API. A static Vercel deployment alone cannot access this
+PC's database. Existing cloud deployments/settings were not changed or redeployed.
 
 ## Verification
 

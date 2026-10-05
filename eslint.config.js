@@ -4,9 +4,9 @@ import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 
 export default [
-  { ignores: ["dist"] },
+  { ignores: ["dist", "dist-local"] },
   {
-    files: ['server/local/**/*.mjs', 'scripts/local-db.mjs'],
+    files: ['server/**/*.mjs', 'scripts/local-db.mjs', 'scripts/check-supabase-connection.mjs'],
     languageOptions: { ecmaVersion: 'latest', sourceType: 'module', globals: globals.node },
     rules: { ...js.configs.recommended.rules },
   },

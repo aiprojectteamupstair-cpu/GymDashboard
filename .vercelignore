@@ -1,0 +1,10 @@
+.git/
+.local-db/
+.private-imports/
+.env.local
+.env.*.local
+node_modules/
+dist/
+dist-local/
+**/*.xlsx
+**/*.log

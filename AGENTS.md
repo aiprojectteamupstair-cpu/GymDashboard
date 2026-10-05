@@ -2,6 +2,23 @@
 
 Last updated: 2026-10-02. Business: The Community Fitness By Strategy First Gym.
 
+## October 2 Supabase reconnection (supersedes disconnection and old target restrictions)
+
+- Latest user requirement: dashboard must work without a VPN. Browser Supabase SDK now uses same-origin `/supabase`, with the canonical project session-storage key. `api/supabase.js` and `server/supabase/relay.mjs` implement a fixed-project, route/method-limited Vercel relay; no privileged keys, credential/body logging, redirects or cached responses. Local Vite forwards only to `SUPABASE_RELAY_ORIGIN`; missing deployment returns 503, never a direct Supabase fallback. Vercel deployment is prepared but not deployed: no hosting login/link was available, and the Vercel plugin was suggested for installation/connection. 71 tests/lint/build and synthetic browser same-origin checks passed. Real VPN-free access remains unverified until deployment and endpoint checks pass. See [VPN-free hosting](docs/VPN_FREE_HOSTING.md). Do not ask the user to use a VPN as the solution.
+- Latest failed-fetch follow-up: `src/supabase/transport.js` bounds requests to 12 seconds and replaces opaque network failures with actionable messages; HTTP credential errors and caller cancellation are preserved. `npm run check:supabase` is a credential-free DNS/Auth reachability test. 63 tests, lint/build and synthetic browser error/retry checks passed. Real network check still times out; user was asked to connect an available VPN or alternate network. Do not report login as fixed until actual reachability and authentication succeed.
+- User explicitly selected **TCF User's Database**, `snbfdktwrgzhwjqmyhdz`, and requested dashboard reconnection. This is now the approved target; earlier diagnostic-only restrictions are superseded.
+- `src/backend.js` selects the backend. `npm run dev`, `build` and `preview` use Supabase mode and the tracked public configuration in `.env.supabase`. Only the publishable key is client-side. `npm run dev:local`, `build:local` and `preview:local` retain the separate local PostgreSQL workspace; its data is unchanged.
+- Both `gym-commands` and `admin-accounts` are deployed on the selected project with JWT verification enabled. Existing schema/RPCs/data were reused, not imported or reset. Read-only connector checks show 423 members, 484 memberships, 22 training purchases, 4,349 attendance, and RLS on all 12 public tables.
+- 59 tests, lint, Supabase/local builds and rollback-only live access-denial tests passed. Security advisor returned no findings. Real authenticated browser operations remain unverified.
+- The selected project had zero Auth users at the latest verification, despite the user reporting account creation. The existing Super Admin profile has null user_id. Verify the exact user-approved email from the conversation, confirmed/non-deleted/non-banned identity and correct project before linking; do not reset or fabricate an account. Browser API reachability still times out from this computer.
+- C drive is full. Workspace npm cache now uses D drive through `.npmrc`; do not delete user files to free space. See [reconnection status](docs/SUPABASE_RECONNECTION_2026_10_02.md).
+
+## Supabase disconnection (supersedes backend instructions below)
+
+- User requested all project Supabase connections removed. App now exclusively uses `src/local/backend.js` and the PostgreSQL API for development and built previews. No environment flag enables remote Auth/database access.
+- SDK, local Supabase/bootstrap env settings, provisioning/network npm commands and Vite/Vercel proxy routes removed. Historical Supabase SQL, functions and offline tests retained as inactive reference. Remote databases/data and existing cloud deployments were not deleted or modified.
+- `npm run dev` or `npm run build` then `npm run preview` serves the local workspace. Read [current setup](docs/LOCAL_POSTGRES.md); older cloud-connect instructions are historical.
+
 ## October 2 local PostgreSQL (supersedes active-entry/backend notes below)
 
 - Follow-up network check: [October 2 results](docs/SUPABASE_NETWORK_2026_10_02.md). Requested `snbfdktwrgzhwjqmyhdz` endpoint resolves consistently through system/public DNS, but both gateway IPs time out on TCP 443 over Ethernet with visible TAP VPN adapters disconnected. No HTTP 401/no-key response received. Missing opt-in Vite proxy fixed; hosted proxy target mismatch now fails the build. 59 tests/lint/build pass; remote network access remains unresolved. Do not switch the approved project to the diagnostic host.

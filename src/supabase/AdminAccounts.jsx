@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { ShieldCheck, UserPlus } from 'lucide-react';
-import { supabase } from './client.js';
+import { backend } from '../backend.js';
 import { Button, Dialog, Field } from '../prototype/components.jsx';
 
 async function requestAccounts(body) {
-  const { data, error } = await supabase.functions.invoke('admin-accounts', { body });
+  const { data, error } = await backend.functions.invoke('admin-accounts', { body });
   if (error) {
     let message = error.message;
     try { message = (await error.context.json()).error || message; } catch { /* network errors have no response */ }
