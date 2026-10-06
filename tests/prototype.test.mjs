@@ -147,8 +147,8 @@ test('Excel export has five worksheets, typed dates, filters and literal input t
   assert.ok(members.includes('=HYPERLINK(&quot;invalid&quot;) &amp; &lt;test&gt;'));
   assert.ok(!members.includes('<f>'));
   assert.ok(members.includes('<autoFilter'));
-  assert.ok(strFromU8(zip['xl/worksheets/sheet3.xml']).includes('s="3"><v>'));
-  assert.ok(strFromU8(zip['xl/styles.xml']).includes('dd mmm yyyy'));
+  assert.match(strFromU8(zip['xl/worksheets/sheet3.xml']), /s="[34]"><v>/);
+  assert.ok(strFromU8(zip['xl/styles.xml']).includes('dd/mm/yyyy'));
 });
 
 test('category codes use distinct sequences, retain former IDs and never reuse archived IDs', () => {

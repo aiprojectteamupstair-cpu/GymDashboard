@@ -27,7 +27,13 @@ export function shiftDays(date, amount) {
 
 export function formatDate(value, options = {}) {
   if (!validDate(value)) return 'Not recorded';
-  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC', ...options }).format(new Date(`${value}T00:00:00Z`));
+  return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC', ...options }).format(new Date(`${value}T00:00:00Z`));
+}
+
+export function parseDisplayDate(value) {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
+  const iso = match ? `${match[3]}-${match[2]}-${match[1]}` : '';
+  return validDate(iso) ? iso : '';
 }
 
 export function formatAttendanceTime(row) {
@@ -36,6 +42,7 @@ export function formatAttendanceTime(row) {
 }
 
 export function formatTime(value) {
+  if (!value || Number.isNaN(new Date(value).valueOf())) return 'Time not recorded';
   return new Intl.DateTimeFormat('en-GB', { timeZone: TIME_ZONE, hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(value));
 }
 

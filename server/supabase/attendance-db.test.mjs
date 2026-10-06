@@ -5,7 +5,7 @@ import pg from 'pg';
 import { startDatabase, root } from '../local/runtime.mjs';
 import { attendanceVersion } from '../../src/prototype/attendanceCalendarService.js';
 
-test('calendar SQL: real schema, service-only access, Admin permission, concurrency, rollback and history', async () => {
+test('calendar SQL: real schema, service-only Admin/Staff access, concurrency, rollback and history', async () => {
   const local=await startDatabase(); await local.end();
   const config=JSON.parse(await readFile(`${root}/connection.json`,'utf8'));
   const suffix=crypto.randomUUID().replaceAll('-','');
@@ -19,7 +19,7 @@ test('calendar SQL: real schema, service-only access, Admin permission, concurre
     pool=new pg.Pool({...config,database});
     await pool.query(`CREATE SCHEMA auth; CREATE TABLE auth.users(id uuid PRIMARY KEY);
       CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS 'SELECT null::uuid';`);
-    for(const file of ['20260929094219_community_fitness_foundation.sql','20261001040433_admin_provisioning_and_attendance_import.sql','20261001104539_live_workspace_commands.sql','20261001105350_admin_account_removal.sql','20261005084758_admin_attendance_calendar.sql']) {
+    for(const file of ['20260929094219_community_fitness_foundation.sql','20261001040433_admin_provisioning_and_attendance_import.sql','20261001104539_live_workspace_commands.sql','20261001105350_admin_account_removal.sql','20261005084758_admin_attendance_calendar.sql','20261006111224_staff_attendance_calendar.sql']) {
       const sql=await readFile(new URL(`../../supabase/migrations/${file}`,import.meta.url),'utf8');
       await pool.query(sql.replace(/\b(anon|authenticated|service_role)\b/g,name=>roles[name]));
     }
@@ -37,7 +37,7 @@ test('calendar SQL: real schema, service-only access, Admin permission, concurre
     const row=async()=> (await pool.query('SELECT to_jsonb(a) AS row FROM public.attendance a WHERE member_id=$1 AND attendance_date=$2',[member,add.date])).rows[0]?.row;
     await assert.rejects(invoke(input([add]),owner,crypto.randomUUID(),roles.anon),{code:'42501'});
     await assert.rejects(invoke(input([add]),owner,crypto.randomUUID(),roles.authenticated),{code:'42501'});
-    await assert.rejects(invoke(input([add]),staff),{code:'42501'});
+    await assert.rejects(invoke(input([add]),crypto.randomUUID()),{code:'42501'});
     await assert.rejects(invoke(input([{...add,date:'2999-01-01'}])),/past/);
     await assert.rejects(invoke({...input([add]),reason:''}),/reason/);
     await assert.rejects(invoke(input([{...add,time:undefined}])),/time/);
@@ -49,7 +49,7 @@ test('calendar SQL: real schema, service-only access, Admin permission, concurre
     const original=await row();
     assert.ok(original.recorded_at.startsWith(new Date().getUTCFullYear().toString()));
     const edit=input([{date:add.date,present:true,time:'10:00',expected:attendanceVersion(original)}]);
-    const concurrent=await Promise.allSettled([invoke(edit),invoke(edit)]);
+    const concurrent=await Promise.allSettled([invoke(edit,staff),invoke(edit,staff)]);
     assert.equal(concurrent.filter(result=>result.status==='fulfilled').length,1);
     let current=await row();
     assert.equal(current.original_checked_in_at,original.checked_in_at);
@@ -57,12 +57,15 @@ test('calendar SQL: real schema, service-only access, Admin permission, concurre
     await assert.rejects(invoke(input([{...add,date:'2026-01-03'},{...add,expected:null}])),/changed/);
     assert.equal((await pool.query('SELECT count(*) FROM public.attendance')).rows[0].count,'1');
     assert.deepEqual(await row(),snapshot);
-    await invoke(input([{date:add.date,present:false,expected:attendanceVersion(current)}]));
+    await invoke(input([{date:add.date,present:false,expected:attendanceVersion(current)}]),staff);
     current=await row(); assert.ok(current.voided_at);
-    await invoke(input([{date:add.date,present:true,expected:attendanceVersion(current)}]));
+    await invoke(input([{date:add.date,present:true,expected:attendanceVersion(current)}]),staff);
     current=await row(); assert.equal(current.id,original.id); assert.equal(current.voided_at,null);
     assert.equal(current.original_checked_in_at,original.checked_in_at);
     assert.equal((await pool.query("SELECT count(*) FROM public.audit_events WHERE action='attendance.calendar'")).rows[0].count,'4');
+    await invoke(input([{...add,date:'2026-01-04'}]),staff);
+    await pool.query('UPDATE public.app_staff SET enabled=false WHERE user_id=$1',[staff]);
+    await assert.rejects(invoke(input([{...add,date:'2026-01-05'}]),staff),{code:'42501'});
     await pool.query('UPDATE public.app_staff SET enabled=false WHERE user_id=$1',[owner]);
     await assert.rejects(invoke(input([add]),owner,request),{code:'42501'});
   } finally {

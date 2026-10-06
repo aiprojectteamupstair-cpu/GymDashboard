@@ -14,8 +14,8 @@ function setup(role = 'super_admin') {
   return {repo,member,input,storage};
 }
 
-test('Admin calendar adds, corrects, voids and restores the same visit with audited originals', () => {
-  const {repo,input} = setup();
+for (const role of ['super_admin', 'admin']) test(`${role} calendar adds, corrects, voids and restores the same visit with audited originals`, () => {
+  const {repo,input} = setup(role);
   const date='2026-10-02';
   repo.editAttendanceCalendar(input([{date,present:true,time:'09:15',expected:null}]));
   const original=repo.getSnapshot().attendance[0];
@@ -34,9 +34,9 @@ test('Admin calendar adds, corrects, voids and restores the same visit with audi
   assert.equal(repo.getSnapshot().audit_events.filter(event=>event.action==='attendance.calendar').length,4);
 });
 
-test('calendar denies Staff, today/future/invalid dates, missing time/reason and stale or duplicate batches', () => {
-  const staff=setup('admin');
-  assert.throws(()=>staff.repo.editAttendanceCalendar(staff.input([{date:'2026-10-01',present:true,time:'09:00',expected:null}])),/Only Admin/);
+test('calendar denies unknown roles, today/future/invalid dates, missing time/reason and stale or duplicate batches', () => {
+  const staff=setup('unregistered');
+  assert.throws(()=>staff.repo.editAttendanceCalendar(staff.input([{date:'2026-10-01',present:true,time:'09:00',expected:null}])),/authorized/);
   const {repo,input}=setup();
   const before=repo.getSnapshot();
   for(const change of [
@@ -69,13 +69,14 @@ test('calendar restoration preserves imported unknown times, snapshots and prove
   assert.deepEqual(row.source_reference,{sheet:'historic'});
 });
 
-test('calendar Edge route enforces verified Admin role and never trusts payload role', async () => {
-  let role='admin',calls=0;
+test('calendar Edge route permits verified Admin and Staff, never trusting payload role', async () => {
+  let role='unregistered',calls=0;
   const query={select(){return this;},eq(){return this;},is(){return this;},async maybeSingle(){return {data:{id:'staff',role_code:role}};}};
   const handler=createCommandHandler({userClient:()=>({auth:{getUser:async()=>({data:{user:{id:'verified'}}})},from:()=>query}),adminClient:()=>({rpc:async (name,args)=>{calls++;assert.equal(name,'gym_attendance_calendar');assert.equal(args.actor_auth_id,'verified');assert.equal(args.command,undefined);return {data:{count:1}};}})});
   const invoke=()=>handler(new Request('https://example.invalid',{method:'POST',headers:{Authorization:'Bearer synthetic'},body:JSON.stringify({command:'attendance.calendar',request_id:crypto.randomUUID(),payload:{role:'super_admin'}})}));
   assert.equal((await invoke()).status,403); assert.equal(calls,0);
   role='super_admin'; assert.equal((await invoke()).status,200); assert.equal(calls,1);
+  role='admin'; assert.equal((await invoke()).status,200); assert.equal(calls,2);
 });
 
 test('account labels change without changing role identifiers or personal names', () => {

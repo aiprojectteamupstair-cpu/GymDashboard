@@ -25,7 +25,7 @@ export function createCommandHandler({ userClient, adminClient, allowedOrigins =
       try { body = JSON.parse(raw); } catch { return reply(400, { error: 'Invalid request.' }); }
       if (!commands.has(body?.command) || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body?.request_id || '') || !body.payload || Array.isArray(body.payload) || typeof body.payload !== 'object') return reply(400, { error: 'Invalid command.' });
       const calendar = body.command === 'attendance.calendar';
-      if (calendar && profile.data.role_code !== 'super_admin') return reply(403, { error: 'Only Admin can edit the attendance calendar.' });
+      if (calendar && !['super_admin','admin'].includes(profile.data.role_code)) return reply(403, { error: 'An authorized Admin or Staff account is required.' });
       const result = await adminClient().rpc(calendar ? 'gym_attendance_calendar' : 'gym_command', { actor_auth_id: data.user.id, request_id: body.request_id, ...(!calendar ? { command: body.command } : {}), payload: body.payload });
       if (result.error) return reply(result.error.code === '42501' ? 403 : 409, { error: result.error.message.replaceAll('Super Admin', 'Admin') });
       return reply(200, { result: result.data });

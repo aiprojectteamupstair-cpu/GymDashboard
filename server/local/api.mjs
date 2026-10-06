@@ -59,7 +59,7 @@ export function createLocalApi(pool) {
         if (!actor) throw failure('Please sign in again.',401);
         if (path==='workspace' && req.method==='GET') return { data:await loadSnapshot(db), staff:publicAccount(actor) };
         if (path==='gym-commands' && req.method==='POST') {
-          if (body.command === 'attendance.calendar' && actor.role_code !== 'super_admin') throw failure('Only Admin can edit the attendance calendar.',403);
+          if (body.command === 'attendance.calendar' && !['super_admin','admin'].includes(actor.role_code)) throw failure('An authorized Admin or Staff account is required.',403);
           if (!body.payload || typeof body.payload!=='object' || Array.isArray(body.payload)) throw failure('Invalid command payload.');
           return { result:await runCommand(db,actor,body.command,body.payload,body.request_id) };
         }

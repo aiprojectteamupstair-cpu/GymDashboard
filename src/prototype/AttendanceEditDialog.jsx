@@ -3,7 +3,7 @@ import { Button, Dialog, Field } from './components.jsx';
 import { formatDate, formatTime, localDate, TIME_ZONE } from './domain.js';
 
 export function AttendanceEditDialog({data, row, onClose, onSave}) {
-  const [time,setTime] = useState(() => new Intl.DateTimeFormat('en-GB',{timeZone:TIME_ZONE,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(row.checked_in_at)));
+  const [time,setTime] = useState(() => row.checked_in_at ? new Intl.DateTimeFormat('en-GB',{timeZone:TIME_ZONE,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(row.checked_in_at)) : '');
   const [reason,setReason] = useState('');
   const [error,setError] = useState('');
   const member = data.members.find(m=>m.id===row.member_id);

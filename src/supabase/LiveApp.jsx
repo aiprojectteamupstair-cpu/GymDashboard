@@ -80,7 +80,7 @@ export default function LiveApp() {
   }
   const navigate = next => { setPage(next); setMemberId(null); setError(''); window.scrollTo(0, 0); };
   const profile = id => { setPage('members'); setMemberId(id); setSummary(null); window.scrollTo(0, 0); };
-  const common = { data, today, onProfile: profile, onRenew: id => openModal({ type: 'membership', id }), onCheckIn: id => openModal({ type: 'checkin', id }), onEditAttendance: row => openModal({ type: 'attendance-edit', row }), onManageAttendance: staff.role_code === 'super_admin' ? (id, month) => openModal({ type: 'attendance-calendar', id, month }) : undefined };
+  const common = { data, today, onProfile: profile, onRenew: id => openModal({ type: 'membership', id }), onCheckIn: id => openModal({ type: 'checkin', id }), onEditAttendance: row => openModal({ type: 'attendance-edit', row }), onManageAttendance: ['super_admin', 'admin'].includes(staff.role_code) ? (id, month) => openModal({ type: 'attendance-calendar', id, month }) : undefined };
   async function exportData(scope) {
     const owner = sync.current().owner;
     try {

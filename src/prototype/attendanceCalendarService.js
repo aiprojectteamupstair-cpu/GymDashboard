@@ -5,7 +5,7 @@ export function attendanceVersion(row) {
 }
 
 export function applyAttendanceCalendar(data, input, actor, now) {
-  if (actor?.role !== 'super_admin') throw new Error('Only Admin can edit the attendance calendar.');
+  if (!['super_admin', 'admin'].includes(actor?.role)) throw new Error('An authorized Admin or Staff account is required.');
   const member = data.members.find(row => row.id === input.member_id);
   if (!member) throw new Error('Member not found.');
   const reason = input.reason?.trim();

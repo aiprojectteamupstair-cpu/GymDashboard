@@ -13,6 +13,7 @@ export default defineConfig(({ mode, command, isPreview }) => {
   plugins: [react(), backend.mode === 'local' ? localDatabasePlugin() : supabaseRelayPlugin()],
   server: {
     host: '127.0.0.1', port: 3000, strictPort: false,
+    watch: { ignored: ['**/.local-db/**', '**/.private-imports/**'] },
     fs: { deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**', '**/.local-db/**', '**/.private-imports/**'] },
   },
   preview: { host: '127.0.0.1' },

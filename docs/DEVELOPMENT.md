@@ -113,6 +113,39 @@ cleanup does not establish current cloud reachability or change Auth accounts.
 
 ## Checks
 
+### October 6 Verification
+
+- Fixed profile action callbacks and renewal member binding. Profiles tolerate
+  imported unknown start dates and package snapshots; stored histories stay intact.
+- Admin and Staff can add, correct, void and restore past attendance. Account
+  management and editing saved catalogue definitions remain Admin-only. Cloud migration
+  `20261006111224_staff_attendance_calendar` and `gym-commands` v4 are deployed with
+  JWT verification. Browser/anonymous RPC execution remains denied.
+- Default dates and input fields use DD/MM/YYYY. Numeric typing inserts separators;
+  calendar selection, invalid dates, min/max dates and ISO payloads remain supported.
+- Export styling follows the black/gray/white/red reference. Attendance zero cells
+  retain numeric zero but render blank; red numeric ones mark recorded presence.
+  All five sheets, period/category population, histories and totals are unchanged.
+  Text phones/vouchers retain leading zeroes, and date cells use `dd/mm/yyyy`.
+- 89 unit tests, lint, Supabase/local builds, isolated real PostgreSQL API and SQL
+  checks passed. Run the API and SQL test files sequentially to avoid racing the
+  shared PostgreSQL launcher. A cloud rollback-only Staff test verified add, retry,
+  time correction, stale rejection, void and restore; no test records remain.
+- `scripts/test-attendance-ui.mjs` verifies synthetic desktop/mobile check-in,
+  renewal, unknown history, DMY entry and both roles' calendar actions. Set
+  `PLAYWRIGHT_MODULE` to the bundled Playwright entrypoint. Browser tests do not
+  write to the real workspace. Use an ignored temporary directory on D: when C:
+  lacks space; Vite now excludes private database/import folders from its watcher.
+- `scripts/test-export-visual.mjs` imports a synthetic app export, reconciles its
+  attendance total and renders all five sheets with the bundled Artifact Tool.
+  Set `BUNDLED_NODE_MODULES` to the loader's dependency directory. Preview importer
+  rendering can normalize numeric-looking text; independent saved-XLSX checks
+  verified original string types and leading zeroes in phones and vouchers.
+- No member data, Auth identities, credentials or unrelated permissions changed.
+  Vercel frontend redeployment and real authenticated hosted-browser acceptance
+  remain pending. Existing [leaked-password protection warning](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection)
+  remains unchanged; the security advisor reported no other findings.
+
 ```powershell
 npm test
 npm run test:local

@@ -2,6 +2,29 @@
 
 Last updated: 2026-10-02. Business: The Community Fitness By Strategy First Gym.
 
+## October 6 workflow repairs and Staff attendance access
+
+- Profile Check in/Renew now pass member IDs rather than click events. Renewal
+  from a profile fixes the member and shows identity without a selector; the
+  directory's general renewal action retains selection. Unknown imported start
+  dates and missing package snapshots render without crashing or altering data.
+- Both Admin (`super_admin`) and Staff (`admin`) may edit past attendance. Other
+  Staff permissions remain unchanged. Migration `20261006111224_staff_attendance_calendar`
+  and `gym-commands` v4 are deployed on the approved project with JWT verification.
+  Service-only RPC grants, active-account checks, reasons, timestamps, stale-write
+  rejection and audit retention remain. Rollback-only cloud Staff add/retry/edit/
+  void/restore passed; zero test members/audits retained. No real records changed.
+- UI date fields use DD/MM/YYYY with numeric typing and a calendar picker; stored
+  dates stay ISO. Excel uses DMY dates, black headers, alternating gray/white rows
+  and red presence marks. Numeric attendance zeros display blank using a number
+  format, retaining counts and the original five-sheet data layout.
+- Verified 89 unit tests, isolated PostgreSQL API and SQL tests, lint, both builds,
+  synthetic desktop/mobile flows and all five exported sheet previews. Saved XLSX
+  phone/voucher leading zeroes independently verified. Vite ignores private runtime
+  folders to avoid Windows locked-file watcher crashes. Vercel frontend deployment
+  and real authenticated hosted browser acceptance remain pending. See
+  [development checks](docs/DEVELOPMENT.md#october-6-verification).
+
 ## October 5 updated workbook import
 
 - User-authorized October 3 member and July-October attendance workbooks imported

@@ -1,3 +1,4 @@
+import { DateInput } from './DateInput.jsx';
 import { useState } from 'react';
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { Activity, Download, Repeat2, Users, Footprints } from 'lucide-react';
@@ -25,7 +26,7 @@ export function Analytics({ data, today, onExport }) {
   const bestDay = [...insight.weekdays].sort((a, b) => b.average - a.average)[0];
   return <>
     <div className="page-heading"><h1 className="screen-title"><Activity aria-hidden="true"/>Analytics</h1><Button disabled={!valid} onClick={() => onExport({ start, end, category })}><Download size={18} />Export Excel</Button></div>
-    <div className="analytics-filters"><div><strong>{formatDate(start)} – {formatDate(end)}</strong><span>Compared with {formatDate(insight.previousStart)} – {formatDate(insight.previousEnd)}</span></div><label>From<input type="date" aria-label="Analysis start date" value={start} max={end || today} onChange={e=>{setStart(e.target.value);}}/></label><label>To<input type="date" aria-label="Analysis end date" value={end} min={start} max={today} onChange={e=>{setEnd(e.target.value);}}/></label><label>Category at visit<select aria-label="Analysis category" value={category} onChange={e => {setCategory(e.target.value);}}><option value="all">All categories</option>{data.member_categories.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select></label></div>
+    <div className="analytics-filters"><div><strong>{formatDate(start)} – {formatDate(end)}</strong><span>Compared with {formatDate(insight.previousStart)} – {formatDate(insight.previousEnd)}</span></div><label>From<DateInput aria-label="Analysis start date" value={start} max={end || today} onChange={e=>{setStart(e.target.value);}}/></label><label>To<DateInput aria-label="Analysis end date" value={end} min={start} max={today} onChange={e=>{setEnd(e.target.value);}}/></label><label>Category at visit<select aria-label="Analysis category" value={category} onChange={e => {setCategory(e.target.value);}}><option value="all">All categories</option>{data.member_categories.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select></label></div>
     {!valid && <p className="form-error" role="alert">Choose valid dates in order, up to 366 days, ending no later than today.</p>}
     {valid && <>
     <p className="scope-note">{coverage.count.toLocaleString()} attendance records available{coverage.last ? ` · ${formatDate(coverage.first)} – ${formatDate(coverage.last)}` : ''}. Only recorded visits are counted; unrecorded dates are not confirmed absences. Comparison periods may have incomplete source data.</p>

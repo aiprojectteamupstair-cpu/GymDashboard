@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { DateInput } from './DateInput.jsx';
 import { ArrowRight, CalendarDays, CheckCircle2, Info, RotateCw, ShieldCheck, UserPlus } from 'lucide-react';
 import { Avatar, Badge, Button, Dialog, Field } from './components.jsx';
 import { addMonths, categoryLabel, currentMembership, endDate, formatDate, formatTime, guestStatus, membershipStatus } from './domain.js';
@@ -34,11 +35,11 @@ function SubscriptionFields({ data, values, onChange }) {
     {pack && <p className="package-note"><Info size={15} />{pack.access_notes || pack.label}</p>}
     <div className="form-section-title"><span>03</span><h3>Membership dates</h3></div>
     <div className="form-grid">
-      <Field label="Start date *"><input required type="date" value={values.start_date} onChange={e => update('start_date', e.target.value)} /></Field>
+      <Field label="Start date *"><DateInput required value={values.start_date} onChange={e => update('start_date', e.target.value)} /></Field>
       <div className="calculated-date"><span><CalendarDays size={16} />Calculated end date</span><strong>{calculated ? formatDate(calculated) : 'Select a plan and start date'}</strong><small>Calendar months · adjusts for month-end</small></div>
     </div>
     <label className="checkbox-label"><input type="checkbox" checked={override} onChange={e => { setOverride(e.target.checked); onChange({ ...values, override_end_date: '', override_reason: '' }); }} /><ShieldCheck size={17} />Override end date</label>
-    {override && <div className="override-box form-grid"><Field label="Manual end date *"><input required type="date" min={values.start_date} value={values.override_end_date} onChange={e => update('override_end_date', e.target.value)} /></Field><Field label="Reason for manual date *"><input required value={values.override_reason} onChange={e => update('override_reason', e.target.value)} /></Field></div>}
+    {override && <div className="override-box form-grid"><Field label="Manual end date *"><DateInput required min={values.start_date} value={values.override_end_date} onChange={e => update('override_end_date', e.target.value)} /></Field><Field label="Reason for manual date *"><input required value={values.override_reason} onChange={e => update('override_reason', e.target.value)} /></Field></div>}
     {pack?.allows_training && <div className="training-section"><div className="form-section-title"><span>04</span><h3>Personal training</h3></div><div className="form-grid">
       <Field label="PT"><select value={values.training_type} onChange={e => update('training_type', e.target.value)}><option value="none">Not required</option><option value="pt">Personal Trainer (PT)</option></select></Field>
       {values.training_type !== 'none' && <Field label="Training sessions *"><select required value={values.training_sessions} onChange={e => update('training_sessions', e.target.value)}><option value="">Choose sessions</option>{[5, 10, 20, 50].map(n => <option key={n} value={n}>{n} times</option>)}</select></Field>}
@@ -69,7 +70,7 @@ export function MemberForm({ data, member, today, onClose, onSave }) {
         <Field label="Full name *"><input autoFocus required maxLength={120} value={values.full_name} onChange={e => update('full_name', e.target.value)} placeholder="Enter full name" /></Field>
         <Field label="Member category *"><select value={values.category_id} onChange={e => update('category_id', e.target.value)}>{CATEGORIES.filter(c => !(member && member.category_id !== 'guest' && c.id === 'guest')).map(c => <option value={c.id} key={c.id}>{c.label}</option>)}{values.category_id === 'unknown' && <option value="unknown">Unknown (historical)</option>}</select></Field>
         <Field label="Phone number" hint="Optional. Shared contact numbers are allowed."><input type="tel" value={values.contact_phone} onChange={e => update('contact_phone', e.target.value)} placeholder="09…" /></Field>
-        <Field label="Date of birth" hint="Optional. Age is calculated from this date."><input type="date" max={today} value={values.date_of_birth} onChange={e => update('date_of_birth', e.target.value)} /></Field>
+        <Field label="Date of birth" hint="Optional. Age is calculated from this date."><DateInput max={today} value={values.date_of_birth} onChange={e => update('date_of_birth', e.target.value)} /></Field>
         {values.category_id === 'student' && <Field label="Student ID" hint="Optional."><input value={values.student_id} onChange={e => update('student_id', e.target.value)} /></Field>}
         <Field label="Member ID" hint={member?.member_code !== code && member ? `Previous ID ${member.member_code} stays linked to their history.` : 'Assigned automatically when saved.'}><input readOnly value={code || member?.member_code || ''} /></Field>
         <Field label="Remark" className="span-two"><textarea rows={2} value={values.remark} onChange={e => update('remark', e.target.value)} /></Field>
@@ -95,8 +96,8 @@ export function MembershipForm({ data, memberId, today, onClose, onSave }) {
   const overlaps = member && chosenEnd && data.memberships.some(m => m.member_id === member.id && !m.voided_at && endDate(m) >= values.start_date && m.start_date <= chosenEnd);
   return <Dialog title={previous ? 'Renew package' : 'Add package'} subtitle="Choose a package, plan and any additional services." onClose={onClose} wide>
     <form onSubmit={e => { e.preventDefault(); try { onSave({ ...values, member_id: selectedId }); } catch (err) { setError(err.message); } }}><div className="dialog-body">
-      <Field label="Member *"><select required value={selectedId} onChange={e => setSelectedId(e.target.value)}><option value="">Choose a member</option>{data.members.filter(m => !m.archived_at && m.category_id !== 'guest').map(m => <option key={m.id} value={m.id}>{m.full_name} · {m.member_code}</option>)}</select></Field>
-      {previous && <p className="previous-membership">Current: <strong>{previous.package_snapshot.label}</strong> · ends {formatDate(endDate(previous))}</p>}
+      {memberId && member ? <div className="renewal-member"><Avatar member={member}/><div><strong>{member.full_name}</strong><small>{member.member_code} · {categoryLabel(data, member)}</small></div></div> : <Field label="Member *"><select required value={selectedId} onChange={e => setSelectedId(e.target.value)}><option value="">Choose a member</option>{data.members.filter(m => !m.archived_at && m.category_id !== 'guest').map(m => <option key={m.id} value={m.id}>{m.full_name} · {m.member_code}</option>)}</select></Field>}
+      {previous && <p className="previous-membership">Current: <strong>{previous.package_snapshot?.label || 'Not recorded'}</strong> · ends {formatDate(endDate(previous))}</p>}
       <SubscriptionFields data={data} values={values} onChange={setValues} />
       {overlaps && <div className="inline-notice warning"><Info size={18} /><span>These dates overlap an existing membership. Review the start date before saving.</span></div>}
       {error && <p className="form-error" role="alert">{error}</p>}
@@ -114,7 +115,7 @@ export function CheckInDialog({ data, member, today, onClose, onConfirm, onEditA
   const used = guest && status === 'Trial used';
   return <Dialog title="Confirm check-in" subtitle="Make sure you have the right member." onClose={onClose}>
     <div className="dialog-body"><div className="checkin-identity"><Avatar member={member} large /><h3>{member.full_name}</h3><p>{member.member_code} · {categoryLabel(data, member)}</p><Badge>{status}</Badge></div>
-      <dl className="detail-list">{!guest && <><div><dt>Package</dt><dd>{membership?.package_snapshot.label || 'Not recorded'}</dd></div><div><dt>Plan</dt><dd>{membership?.plan_snapshot?.label || 'Not recorded'}</dd></div><div><dt>End date</dt><dd>{formatDate(endDate(membership))}</dd></div><div><dt>Access</dt><dd>{membership?.package_snapshot.access_notes || 'Not recorded'}</dd></div></>}<div><dt>Today</dt><dd>{formatDate(today)}</dd></div></dl>
+      <dl className="detail-list">{!guest && <><div><dt>Package</dt><dd>{membership?.package_snapshot?.label || 'Not recorded'}</dd></div><div><dt>Plan</dt><dd>{membership?.plan_snapshot?.label || 'Not recorded'}</dd></div><div><dt>End date</dt><dd>{formatDate(endDate(membership))}</dd></div><div><dt>Access</dt><dd>{membership?.package_snapshot?.access_notes || 'Not recorded'}</dd></div></>}<div><dt>Today</dt><dd>{formatDate(today)}</dd></div></dl>
       {already ? <div className="inline-notice"><CheckCircle2 size={18} /><span>Already checked in at {formatTime(already.checked_in_at)}.</span></div> : <div className={`inline-notice ${used || (!guest && status !== 'Active') ? 'warning' : ''}`}><Info size={18} /><span>{used ? 'This guest has used their one-day trial. Open their profile and convert them to a member to continue.' : guest ? 'Record their one-day trial visit.' : status !== 'Active' ? `${status} membership. Confirm entry eligibility before recording attendance.` : 'Confirm their visit to record today’s attendance.'}</span></div>}
       {!already && !used && <div className="manual-time-field"><Field label="Check-in time (optional)" hint="Leave blank to use the current Myanmar time."><input type="time" value={manualTime} onChange={e=>setManualTime(e.target.value)}/></Field></div>}
       {error && <p className="form-error" role="alert">{error}</p>}

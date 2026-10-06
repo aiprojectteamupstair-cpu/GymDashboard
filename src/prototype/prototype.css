@@ -641,3 +641,9 @@ button:focus-visible,a:focus-visible { outline:3px solid var(--accent); }
 .attendance-editor .calendar-controls input { color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:8px; font:inherit; max-width:100%; }
 @media(max-width:1250px) { .dashboard-overview { grid-template-columns:minmax(0,1fr) minmax(260px,1fr); } .dashboard-overview > .panel:last-child { grid-column:1/-1; } .dashboard-overview > .panel:last-child .breakdown { flex-direction:row; justify-content:center; gap:36px; } .dashboard-overview .breakdown-legend { max-width:420px; flex:1; } }
 @media(max-width:650px) { .dashboard-overview { grid-template-columns:minmax(0,1fr); } .dashboard-overview > .panel:last-child .breakdown { flex-direction:column; gap:22px; } .dashboard-overview .breakdown-legend { width:100%; } .attendance-editor .calendar-day { height:48px; font-size:13px; } .attendance-editor .calendar-controls { justify-content:center; } }
+.date-input { position: relative; display: flex; align-items: center; min-width: 0; width: 100%; }
+.date-input > input[type="text"] { width: 100%; min-width: 0; padding-right: 42px; }
+.date-picker-button { position: absolute; right: 4px; width: 34px; height: 34px; display: grid; place-items: center; border: 0; background: transparent; color: inherit; cursor: pointer; }
+.date-input > .native-date-picker { position: absolute; width: 1px; height: 1px; bottom: 0; right: 0; padding: 0; border: 0; opacity: 0; pointer-events: none; }
+.renewal-member { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.renewal-member small { display: block; margin-top: 4px; }

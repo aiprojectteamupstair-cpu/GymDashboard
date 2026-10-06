@@ -15,6 +15,10 @@ data.memberships=[{id:'ui-membership',member_id:'ui-member',start_date:shiftDays
 data.attendance=[{id:'ui-visit',member_id:'ui-member',attendance_date:today,checked_in_at:new Date().toISOString(),time_source:'current',member_category_snapshot:'Customer'}];
 let saves=0;
 const page=await browser.newPage({viewport:{width:1600,height:1000}});
+// Missing imported dates and package snapshots must not crash a profile.
+data.members.push({id:'ui-unknown',full_name:'Unknown History Member',member_code:'C002',category_id:'customer',previous_codes:[]});
+data.memberships.push(...[1,2].map(index=>({id:`unknown-${index}`,member_id:'ui-unknown',start_date:null,source_end_date:null,package_snapshot:null,record_origin:'import'})));
+let checkins=0, renewals=0;
 const errors=[]; page.on('pageerror',error=>errors.push(error.message));
 await mkdir('.local-db/ui-checks',{recursive:true});
 await page.route('**/api/local/**',async route=>{
@@ -25,9 +29,19 @@ await page.route('**/api/local/**',async route=>{
   else if(path==='admin-accounts') body={accounts:[staff]};
   else if(path==='gym-commands') {
     const request=route.request().postDataJSON();
-    assert.equal(request.command,'attendance.calendar');
-    body={result:applyAttendanceCalendar(data,request.payload,{id:staff.id,role:staff.role_code},new Date().toISOString())};
-    saves++;
+    if(request.command==='attendance.calendar') {
+      body={result:applyAttendanceCalendar(data,request.payload,{id:staff.id,role:staff.role_code},new Date().toISOString())};
+      saves++;
+    } else if(request.command==='attendance.checkin') {
+      assert.equal(request.payload.id,'ui-unknown');
+      checkins++;
+      data.attendance.push({id:'new-today',member_id:'ui-unknown',attendance_date:today,checked_in_at:new Date().toISOString(),time_source:'current'});
+      body={result:{duplicate:false}};
+    } else if(request.command==='membership.add') {
+      assert.equal(request.payload.member_id,'ui-member');
+      assert.equal(request.payload.start_date,'2026-10-06');
+      renewals++; body={result:{member_id:'ui-member'}};
+    } else throw new Error(`Unexpected command: ${request.command}`);
   } else throw new Error(`Unexpected fixture route: ${path}`);
   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});
 });
@@ -45,7 +59,32 @@ try {
   await page.getByRole('dialog').waitFor();
   await page.keyboard.press('Escape');
   await page.getByRole('button',{name:'Members',exact:true}).click();
+  await page.getByRole('button',{name:'Open profile for Unknown History Member'}).click();
+  await page.getByRole('heading',{name:'Unknown History Member',exact:true}).waitFor();
+  assert.equal(await page.locator('.history-item').count(),2);
+  await page.getByRole('button',{name:'Check in',exact:true}).click();
+  await page.getByRole('dialog').getByRole('button',{name:'Confirm check-in',exact:true}).click();
+  await page.getByRole('dialog').waitFor({state:'hidden'});
+  assert.equal(checkins,1);
+  await page.getByRole('button',{name:'Back to members'}).click();
   await page.getByRole('button',{name:'Open profile for Calendar Test Member'}).click();
+  await page.getByRole('button',{name:'Check in',exact:true}).click();
+  await page.getByRole('dialog').getByText(/Already checked in/).waitFor();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button',{name:'Renew package',exact:true}).click();
+  const renewal=page.getByRole('dialog');
+  assert.equal(await renewal.getByRole('combobox',{name:'Member *',exact:true}).count(),0);
+  await renewal.getByText('Calendar Test Member',{exact:true}).waitFor();
+  await renewal.getByLabel('Start date *',{exact:true}).fill('31/02/2026');
+  assert.equal(await renewal.getByLabel('Start date *',{exact:true}).evaluate(input=>input.checkValidity()),false);
+  await renewal.getByLabel('Start date *',{exact:true}).fill('');
+  await renewal.getByLabel('Start date *',{exact:true}).pressSequentially('06102026');
+  assert.equal(await renewal.getByLabel('Start date *',{exact:true}).inputValue(),'06/10/2026');
+  await renewal.getByLabel('Package *',{exact:true}).selectOption('gym');
+  await renewal.getByLabel('Membership plan *',{exact:true}).selectOption({label:'1 month'});
+  await page.screenshot({path:'.local-db/ui-checks/renewal-desktop.png',fullPage:true});
+  await renewal.getByRole('button',{name:'Save membership',exact:true}).click();
+  await renewal.waitFor({state:'hidden'}); assert.equal(renewals,1);
   await page.getByRole('button',{name:'Edit attendance',exact:true}).click();
   const dialog=page.getByRole('dialog');
   await dialog.getByLabel('Attendance month').fill(yesterday.slice(0,7));
@@ -90,7 +129,21 @@ try {
   assert.equal(await page.getByRole('button',{name:'Staff accounts',exact:true}).count(),0);
   await page.getByRole('button',{name:'Members',exact:true}).click();
   await page.getByRole('button',{name:'Open profile for Calendar Test Member'}).click();
-  assert.equal(await page.getByRole('button',{name:'Edit attendance',exact:true}).count(),0);
+  await page.getByRole('button',{name:'Edit attendance',exact:true}).click();
+  await dialog.getByRole('button',{name:`${yesterday}: No recorded visit`,exact:true}).click();
+  await dialog.getByLabel('Reason for changes').fill('Staff restored verified attendance');
+  await dialog.getByRole('button',{name:'Save changes'}).click();
+  await dialog.waitFor({state:'hidden'}); assert.equal(saves,5);
+  await page.getByRole('button',{name:'Renew package',exact:true}).click();
+  assert.equal(await dialog.getByLabel('Start date *',{exact:true}).inputValue(),today.split('-').reverse().join('/'));
+  await page.screenshot({path:'.local-db/ui-checks/renewal-mobile.png'});
+  assert.ok(await dialog.evaluate(node=>node.scrollWidth<=node.clientWidth));
+  await page.keyboard.press('Escape');
+  await page.getByRole('button',{name:'Analytics',exact:true}).click();
+  await page.getByLabel('Analysis start date',{exact:true}).fill('01/10/2026');
+  await page.getByLabel('Analysis end date',{exact:true}).fill('03/10/2026');
+  await page.screenshot({path:'.local-db/ui-checks/analytics-mobile.png',fullPage:true});
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   assert.deepEqual(errors,[]);
-  console.log('Desktop/mobile layout, drilldown, calendar add/remove/restore and Staff restriction passed (synthetic API; no workspace data changed).');
+  console.log('Desktop/mobile profiles with unknown history, check-in, bound renewal, DMY input, Admin/Staff calendars and layout passed (synthetic API; no workspace data changed).');
 } finally { await browser.close(); }
