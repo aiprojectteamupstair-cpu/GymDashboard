@@ -42,12 +42,12 @@ membership retention. Missing check-ins/history can understate totals. No target
 revenue, live occupancy or session consumption are inferred. Previous period
 series are aligned by relative day, not weekday. No causal conclusion is implied.
 
-## Staff reporting boundary
+## Profile calendar boundary
 
-Staff profile cycles include the starting 25th and following 25th. A check-in on
-the shared boundary appears in both adjacent cycle reports, as explicitly
-requested. The storage row remains unique. Do not sum overlapping cycle totals
-as if they represented disjoint periods. Non-Staff calendars use normal months.
+As requested on October 9, all categories, including Staff/Employee, use the 1st
+through the final day of the selected calendar month. Profile calendars and their
+editors share these bounds. Adjacent months do not overlap, and stored attendance
+is unchanged. Existing category-at-visit filtering remains in place.
 
 ## Export contract
 

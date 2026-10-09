@@ -99,7 +99,7 @@ Source: user conversation, updated September 19 with PT 5-session validity and s
 
 ## September 21 refinements
 
-Light/dark themes persist per browser. New member creation is located only in Members. Dashboard summary cards open searchable matching records and profiles. Staff attendance uses inclusive 25th-to-next-25th cycles: the shared 25th appears in both periods, per explicit user confirmation. The underlying presence is stored once; ordinary member calendars stay calendar-month based. See [Metric definitions](METRICS.md).
+Light/dark themes persist per browser. New member creation is located only in Members. Dashboard summary cards open searchable matching records and profiles. As requested on October 9, all member attendance calendars, including Staff/Employee, use normal calendar months from the 1st to the last day. Stored attendance is unchanged. See [Metric definitions](METRICS.md).
 ## September 22 UI and reporting (supersedes earlier reporting details)
 
 - Product UI uses red, black, white and gray in light/dark modes; charts may use other distinguishing series colors.

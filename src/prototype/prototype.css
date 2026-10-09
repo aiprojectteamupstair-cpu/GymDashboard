@@ -394,7 +394,6 @@ select,.month-input { background: var(--surface); border: 1px solid var(--soft);
 .analytics-trend { margin-bottom:24px; }
 .member-table td>small { display:block; font-size:13px; color:var(--muted); margin-top:4px; }
 .summary-table { margin-top:20px; }
-.calendar-cycle-note { margin:16px 24px 0; font-size:13px; color:var(--muted); }
 .calendar-day small { display:block; }
 :root { color-scheme: light; --ink:#20332f; --muted:#5d706b; --line:#dce5e1; --accent:#137c67; --surface:#ffffff; --soft:#eef3f0; --canvas:#f5f7f6; --comparison:#8c78bb; --navy:var(--surface); font-size:16px; color:var(--ink); background:var(--canvas); }
 :root[data-theme="dark"] { color-scheme:dark; --ink:#e3efea; --muted:#a4b9b0; --line:#354a42; --accent:#76d8bd; --surface:#1b2722; --soft:#26382f; --canvas:#121b17; --comparison:#b3a1dc; }

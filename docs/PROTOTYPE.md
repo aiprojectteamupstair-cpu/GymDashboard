@@ -80,7 +80,7 @@ reviewed Excel import mappings. [Brief](PROJECT_BRIEF.md), [Screens](SCREEN_FLOW
 - Light/dark token-based UI, larger text, simplified forms and persistent preference.
 - Dashboard summary drilldowns; New member only in the member directory.
 - Separate Analytics: period/category filters, previous-period daily comparison, visits/unique/repeat metrics, weekday averages, arrival hours and follow-up list.
-- Staff inclusive 25th-to-25th visual calendar; other categories use calendar months.
+- All categories, including Staff/Employee, use normal calendar months (October 9 update).
 - Compact five-sheet export (Members 8 columns, Memberships 10, Attendance 5, Training 6).
 - Saved package/discount detail edits removed; creation/status changes remain.
 

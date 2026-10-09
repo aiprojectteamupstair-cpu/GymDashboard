@@ -1,6 +1,22 @@
 # Project context and working rules
 
-Last updated: 2026-10-02. Business: The Community Fitness By Strategy First Gym.
+Last updated: 2026-10-09. Business: The Community Fitness By Strategy First Gym.
+
+## October 9 page routes and normal Staff calendar months
+
+- Active local/cloud UI uses browser URLs: `/`, `/members`, `/members/:id`,
+  `/check-in`, `/analytics`, `/packages-discounts`, `/staff-accounts`. Tabs use
+  native links; reload, Back/Forward and sign-in retain deep links. Unknown pages
+  and missing members have explicit states; Staff cannot open account management.
+- Vercel SPA fallback excludes API, Supabase relay and static-file paths; the
+  existing fixed-project relay rewrite stays first. No deployment performed.
+- All profile attendance calendars and editors now use the 1st through the last
+  day of the selected month, including Staff/Employee. This supersedes all older
+  25th-to-25th instructions below. Stored visits, category-at-visit filters,
+  permissions, audit history and Excel data remain unchanged.
+- 92 unit tests, lint, both builds and synthetic desktop/mobile route/calendar
+  and existing workflow browser checks passed. See docs/DEVELOPMENT.md. Vercel
+  redeployment and real hosted authentication/deep-link verification remain pending.
 
 ## October 6 workflow repairs and Staff attendance access
 

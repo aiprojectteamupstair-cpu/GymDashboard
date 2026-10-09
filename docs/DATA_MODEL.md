@@ -153,7 +153,7 @@ Related: [Project brief](PROJECT_BRIEF.md), [Screen flow](SCREEN_FLOW.md).
 
 `service_type` is canonical `pt` for all new training purchases; Rehab is not a second product. Historical values are preserved, while the UI/export uses PT. Catalogue definitions are immutable after creation; only enabled status changes.
 
-Staff 25th-to-25th reporting uses inclusive date bounds at both ends, confirmed by the user. Do not duplicate the attendance row on the shared 25th. Member UUID/day uniqueness still applies. Exports are compact operational reports, not lossless backups; internal IDs, source references and snapshots remain stored. See [Metrics](METRICS.md).
+As requested on October 9, Staff/Employee profile reporting uses normal calendar months, like other categories. Member UUID/day uniqueness still applies; no stored visits change. Exports are compact operational reports, not lossless backups; internal IDs, source references and snapshots remain stored. See [Metrics](METRICS.md).
 ## September 22 update
 
 Custom Analytics date ranges, Analytics-only export, same-day saved check-in time corrections with reason/original time/audit, red-neutral UI, and date-column 1/0 attendance export are implemented. The selected date range includes its endpoints and may include today (partial-day notice). Matrix exports include zero-visit members; 0 means no matching recorded visit. Underlying attendance remains row-based and unique per member/day. Live authorization and date/backdated-entry policies are still pending. See [current requirements](PROJECT_BRIEF.md#september-22-ui-and-reporting-supersedes-earlier-reporting-details).

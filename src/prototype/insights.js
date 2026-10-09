@@ -2,15 +2,11 @@ import { addMonths, attendanceInPeriod, currentMembership, endDate, formatDate, 
 
 export const isStaffVisit = row => ['Staff', 'Staff/Employee'].includes(row.member_category_snapshot);
 
-export function calendarPeriod(month, staff = false) {
-  const start = `${month}-${staff ? '25' : '01'}`;
-  const end = staff ? addMonths(start, 1) : shiftDays(addMonths(start, 1), -1);
+export function calendarPeriod(month) {
+  const start = `${month}-01`;
+  const end = shiftDays(addMonths(start, 1), -1);
   const days = Math.round((Date.parse(end) - Date.parse(start)) / 86400000) + 1;
   return { start, end, days, dates: Array.from({ length: days }, (_, i) => shiftDays(start, i)) };
-}
-
-export function currentStaffMonth(today) {
-  return today.slice(8) >= '25' ? today.slice(0, 7) : shiftDays(`${today.slice(0, 7)}-01`, -1).slice(0, 7);
 }
 
 export function membershipActivity(data, today) {

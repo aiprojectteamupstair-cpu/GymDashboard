@@ -7,9 +7,10 @@ import AdminAccounts from './AdminAccounts.jsx';
 import LiveDialogs from './LiveDialogs.jsx';
 import { createCommandSender } from './commands.js';
 import { accountName } from '../roles.js';
+import { PAGE_PATHS, memberPath, resolveRoute, isPlainNavigation } from '../routes.js';
 import { Analytics } from '../prototype/Analytics.jsx';
 import { SummaryDialog } from '../prototype/SummaryDialog.jsx';
-import { Button, Field } from '../prototype/components.jsx';
+import { Button, EmptyState, Field } from '../prototype/components.jsx';
 import { downloadPrototypeWorkbook } from '../prototype/export.js';
 import { localDate } from '../prototype/domain.js';
 import '../prototype/prototype.css';
@@ -21,8 +22,7 @@ export default function LiveApp() {
   const [sync] = useState(() => createWorkspaceSync(owner => backend.loadWorkspace(owner), setWorkspace));
   const { snapshot, busy } = workspace;
   const [error, setError] = useState('');
-  const [page, setPage] = useState('dashboard');
-  const [memberId, setMemberId] = useState(null);
+  const [{ page, memberId }, setRoute] = useState(() => resolveRoute(window.location.pathname));
   const [summary, setSummary] = useState(null);
   const [modal, setModal] = useState(null);
   const [mutation, setMutation] = useState({ busy: false, error: '' });
@@ -33,6 +33,33 @@ export default function LiveApp() {
   const [theme, setTheme] = useState(() => localStorage.getItem('community-fitness:theme') || 'light');
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem('community-fitness:theme', theme); }, [theme]);
 
+  useEffect(() => {
+    const canonicalize = () => {
+      const route = resolveRoute(window.location.pathname);
+      if (route.path !== window.location.pathname) window.history.replaceState(null, '', route.path + window.location.search + window.location.hash);
+      return route;
+    };
+    canonicalize();
+    const restore = () => {
+      setRoute(canonicalize()); setModal(null); setSummary(null); setError(''); setNotice('');
+    };
+    window.addEventListener('popstate', restore);
+    return () => window.removeEventListener('popstate', restore);
+  }, []);
+
+  function goTo(path, replace = false) {
+    if (window.location.pathname !== path || window.location.search || window.location.hash) {
+      window.history[replace ? 'replaceState' : 'pushState'](null, '', path);
+    }
+    setRoute(resolveRoute(path)); setModal(null); setSummary(null); setError(''); setNotice('');
+    window.scrollTo(0, 0);
+  }
+  const navigate = next => goTo(PAGE_PATHS[next]);
+  const profile = id => goTo(memberPath(id));
+  const followLink = (event, pageId) => {
+    if (isPlainNavigation(event)) { event.preventDefault(); navigate(pageId); }
+  };
+
   const refresh = () => { setError(''); return sync.refresh({ force: true }); };
   useEffect(() => {
     let alive = true;
@@ -40,7 +67,7 @@ export default function LiveApp() {
       if (!alive) return;
       setSession(next);
       if (sync.identity(next?.user.id || null)) {
-        setSummary(null); setModal(null); setMemberId(null); setPage('dashboard'); setError('');
+        setSummary(null); setModal(null); setError(''); setNotice('');
       }
       // Keep Supabase requests outside its synchronous auth callback.
       setTimeout(() => { if (alive) void sync.refresh(); }, 0);
@@ -55,7 +82,7 @@ export default function LiveApp() {
     return () => { clearInterval(timer); window.removeEventListener('focus', recheck); };
   }, [session, sync]);
   async function logout() {
-    sync.identity(null); setSession(null); setSummary(null); setModal(null); setMemberId(null);
+    sync.identity(null); setSession(null); goTo(PAGE_PATHS.dashboard, true);
     const { error: problem } = await backend.auth.signOut({ scope: 'local' });
     if (problem) setError(problem.message);
   }
@@ -78,8 +105,6 @@ export default function LiveApp() {
     } catch (err) { if (owner === sync.current().owner) { setMutation({ busy: false, error: err.message }); setError(err.message); } }
     finally { saving.current = false; setMutation(current => ({ ...current, busy: false })); }
   }
-  const navigate = next => { setPage(next); setMemberId(null); setError(''); window.scrollTo(0, 0); };
-  const profile = id => { setPage('members'); setMemberId(id); setSummary(null); window.scrollTo(0, 0); };
   const common = { data, today, onProfile: profile, onRenew: id => openModal({ type: 'membership', id }), onCheckIn: id => openModal({ type: 'checkin', id }), onEditAttendance: row => openModal({ type: 'attendance-edit', row }), onManageAttendance: ['super_admin', 'admin'].includes(staff.role_code) ? (id, month) => openModal({ type: 'attendance-calendar', id, month }) : undefined };
   async function exportData(scope) {
     const owner = sync.current().owner;
@@ -91,8 +116,8 @@ export default function LiveApp() {
   }
   return <div className="app-shell live-shell">
     <a className="skip-link" href="#main-content">Skip to main content</a>
-    <aside className="sidebar"><button className="brand" onClick={() => navigate('dashboard')}><img src="/community-fitness-logo.png" alt="The Community Fitness by Strategy First" /></button>
-      <nav aria-label="Main navigation">{[['dashboard', 'Dashboard', LayoutDashboard], ['members', 'Members', Users], ['checkin', 'Check-in', CalendarCheck2], ['analytics', 'Analytics', Activity], ['catalogue', 'Packages & Discounts', Settings2], ...(staff.role_code === 'super_admin' ? [['accounts', 'Staff accounts', ShieldCheck]] : [])].map(([id, label, Icon]) => <button key={id} className={`nav-item ${page === id ? 'nav-active' : ''}`} aria-current={page === id ? 'page' : undefined} onClick={() => navigate(id)}><Icon size={19} />{label}</button>)}</nav>
+    <aside className="sidebar"><a className="brand" href={PAGE_PATHS.dashboard} onClick={event => followLink(event, 'dashboard')}><img src="/community-fitness-logo.png" alt="The Community Fitness by Strategy First" /></a>
+      <nav aria-label="Main navigation">{[['dashboard', 'Dashboard', LayoutDashboard], ['members', 'Members', Users], ['checkin', 'Check-in', CalendarCheck2], ['analytics', 'Analytics', Activity], ['catalogue', 'Packages & Discounts', Settings2], ...(staff.role_code === 'super_admin' ? [['accounts', 'Staff accounts', ShieldCheck]] : [])].map(([id, label, Icon]) => <a key={id} href={PAGE_PATHS[id]} className={`nav-item ${page === id ? 'nav-active' : ''}`} aria-current={page === id ? 'page' : undefined} onClick={event => followLink(event, id)}><Icon size={19} />{label}</a>)}</nav>
       <div className="sidebar-bottom"><strong>{accountName(staff)}</strong></div>
     </aside>
     <div className="main-shell"><header className="topbar"><strong>{backendMode === 'local' ? 'Local workspace' : 'Gym workspace'}</strong><div className="topbar-actions"><Button disabled={busy} onClick={refresh}><RefreshCw size={17} />{busy ? 'Refreshing…' : 'Refresh'}</Button><Button aria-label="Toggle theme" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}</Button><Button onClick={logout}><LogOut size={17} />Sign out</Button></div></header>
@@ -100,11 +125,13 @@ export default function LiveApp() {
         {notice && <p role="status" className="soft-note">{notice}</p>}
         {(error || workspace.error) && <p role="alert" className="error-banner">{error || workspace.error}</p>}
         {page === 'dashboard' && <Dashboard {...common} onNavigate={navigate} onDrilldown={setSummary} />}
-        {page === 'members' && (member ? <MemberProfile key={member.id} {...common} member={member} onBack={() => setMemberId(null)} onEdit={() => openModal({ type: 'member', id: member.id })} onArchive={() => openModal({ type: 'archive', id: member.id })} /> : <MemberDirectory {...common} onAdd={() => openModal({ type: 'member' })} />)}
+        {page === 'members' && (memberId ? member ? <MemberProfile key={member.id} {...common} member={member} onBack={() => navigate('members')} onEdit={() => openModal({ type: 'member', id: member.id })} onArchive={() => openModal({ type: 'archive', id: member.id })} /> : <EmptyState title="Member not found" message="This member is unavailable in your workspace." action={<Button onClick={() => navigate('members')}>Back to members</Button>} /> : <MemberDirectory {...common} onAdd={() => openModal({ type: 'member' })} />)}
         {page === 'analytics' && <Analytics data={data} today={today} onExport={exportData} />}
         {page === 'checkin' && <CheckInPage {...common} />}
         {page === 'catalogue' && <CataloguePage data={data} canEdit={staff.role_code === 'super_admin'} onCreate={kind => openModal({ type: 'catalogue', kind })} onEdit={(kind, row) => openModal({ type: 'catalogue', kind, row })} onToggle={(kind, row) => save('catalogue.status', { kind, id: row.id, enabled: !row.enabled, expected_updated_at: row.updated_at })} />}
         {page === 'accounts' && staff.role_code === 'super_admin' && <AdminAccounts />}
+        {page === 'accounts' && staff.role_code !== 'super_admin' && <EmptyState title="Access denied" message="Only Admin can manage staff accounts." action={<Button onClick={() => navigate('dashboard')}>Back to dashboard</Button>} />}
+        {page === 'not-found' && <EmptyState title="Page not found" message="This page does not exist." action={<Button onClick={() => navigate('dashboard')}>Back to dashboard</Button>} />}
       </main>
     </div>
     {summary && <SummaryDialog {...common} kind={summary} onClose={() => setSummary(null)} />}

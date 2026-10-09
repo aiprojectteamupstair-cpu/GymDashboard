@@ -261,14 +261,15 @@ test('legacy upgrade keeps a raw backup, identities, historical dates and unknow
   assert.equal(JSON.parse(storage.getItem(STORAGE_KEY)).schema_version, 2);
 });
 
-test('Staff cycles include both 25ths and normal calendars remain separate', async () => {
-  const { calendarPeriod, currentStaffMonth } = await import('../src/prototype/insights.js');
-  const feb = calendarPeriod('2024-02', true), march = calendarPeriod('2024-03', true);
-  assert.equal(feb.start, '2024-02-25'); assert.equal(feb.end, '2024-03-25');
-  assert.equal(feb.days, 30); assert.ok(march.dates.includes(feb.end));
-  assert.equal(calendarPeriod('2024-02').end, '2024-02-29');
-  assert.equal(currentStaffMonth('2026-01-24'), '2025-12');
-  assert.equal(currentStaffMonth('2026-01-25'), '2026-01');
+test('all attendance calendars use full months with leap years and no overlapping days', async () => {
+  const { calendarPeriod } = await import('../src/prototype/insights.js');
+  for (const [month, end, count] of [['2024-02','2024-02-29',29],['2026-02','2026-02-28',28],['2026-04','2026-04-30',30],['2026-12','2026-12-31',31]]) {
+    const period = calendarPeriod(month);
+    assert.equal(period.start, month + '-01'); assert.equal(period.end, end);
+    assert.equal(period.days, count); assert.equal(period.dates.length, count);
+  }
+  const feb = calendarPeriod('2024-02'), march = calendarPeriod('2024-03');
+  assert.ok(!march.dates.some(day => feb.dates.includes(day)));
 });
 test('attendance insights deduplicate, exclude voids, compare equal periods and use Myanmar hours', async () => {
   const { attendanceInsights } = await import('../src/prototype/insights.js');

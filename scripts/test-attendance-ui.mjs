@@ -58,7 +58,7 @@ try {
   await page.getByRole('button',{name:'All active: 1',exact:true}).click();
   await page.getByRole('dialog').waitFor();
   await page.keyboard.press('Escape');
-  await page.getByRole('button',{name:'Members',exact:true}).click();
+  await page.getByRole('link',{name:'Members',exact:true}).click();
   await page.getByRole('button',{name:'Open profile for Unknown History Member'}).click();
   await page.getByRole('heading',{name:'Unknown History Member',exact:true}).waitFor();
   assert.equal(await page.locator('.history-item').count(),2);
@@ -108,10 +108,10 @@ try {
   await dialog.waitFor({state:'hidden'}); assert.equal(saves,3);
   assert.equal(data.attendance.find(row=>row.attendance_date===yesterday).voided_at,null);
   await page.setViewportSize({width:390,height:844});
-  await page.getByRole('button',{name:'Dashboard',exact:true}).click();
+  await page.getByRole('link',{name:'Dashboard',exact:true}).click();
   await page.screenshot({path:'.local-db/ui-checks/dashboard-mobile.png',fullPage:true});
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
-  await page.getByRole('button',{name:'Members',exact:true}).click();
+  await page.getByRole('link',{name:'Members',exact:true}).click();
   await page.getByRole('button',{name:'Open profile for Calendar Test Member'}).click();
   await page.getByRole('button',{name:'Edit attendance',exact:true}).click();
   await dialog.getByRole('button',{name:`${yesterday}: Present`,exact:true}).click();
@@ -120,14 +120,14 @@ try {
   assert.ok(await dialog.evaluate(node=>node.getBoundingClientRect().right<=innerWidth));
   await dialog.getByRole('button',{name:'Save changes'}).click();
   await dialog.waitFor({state:'hidden'}); assert.equal(saves,4);
-  await page.getByRole('button',{name:'Dashboard',exact:true}).click();
+  await page.getByRole('link',{name:'Dashboard',exact:true}).click();
   await page.getByRole('button',{name:'Toggle theme'}).click();
   await page.screenshot({path:'.local-db/ui-checks/dashboard-mobile-dark.png',fullPage:true});
   staff.role_code='admin'; staff.display_name='Reception';
   await page.reload();
   await page.getByRole('heading',{name:'Dashboard',exact:true}).waitFor();
-  assert.equal(await page.getByRole('button',{name:'Staff accounts',exact:true}).count(),0);
-  await page.getByRole('button',{name:'Members',exact:true}).click();
+  assert.equal(await page.getByRole('link',{name:'Staff accounts',exact:true}).count(),0);
+  await page.getByRole('link',{name:'Members',exact:true}).click();
   await page.getByRole('button',{name:'Open profile for Calendar Test Member'}).click();
   await page.getByRole('button',{name:'Edit attendance',exact:true}).click();
   await dialog.getByRole('button',{name:`${yesterday}: No recorded visit`,exact:true}).click();
@@ -139,7 +139,7 @@ try {
   await page.screenshot({path:'.local-db/ui-checks/renewal-mobile.png'});
   assert.ok(await dialog.evaluate(node=>node.scrollWidth<=node.clientWidth));
   await page.keyboard.press('Escape');
-  await page.getByRole('button',{name:'Analytics',exact:true}).click();
+  await page.getByRole('link',{name:'Analytics',exact:true}).click();
   await page.getByLabel('Analysis start date',{exact:true}).fill('01/10/2026');
   await page.getByLabel('Analysis end date',{exact:true}).fill('03/10/2026');
   await page.screenshot({path:'.local-db/ui-checks/analytics-mobile.png',fullPage:true});

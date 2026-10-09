@@ -91,7 +91,7 @@ Related: [Brief](PROJECT_BRIEF.md), [Model](DATA_MODEL.md), [Implementation](PRO
 
 New member is available only in Members. Dashboard cards open matching searchable records with profile links. Theme control in the header persists light/dark selection. Analytics shows completed-period engagement and arrival patterns rather than repeating daily operations; see [Metrics](METRICS.md).
 
-Staff profile calendars run from the 25th to the following 25th, both inclusive. The shared boundary date is reported in both cycles without duplicating storage. Other categories retain ordinary monthly calendars. Admin cannot edit existing package/discount details; Super Admin can edit them while existing memberships retain snapshots.
+As requested on October 9, profile calendars and attendance editors use normal calendar months for all categories, including Staff/Employee. Existing attendance is unchanged. Staff cannot edit existing package/discount details; Admin can edit them while existing memberships retain snapshots.
 ## September 22 update
 
 Custom Analytics date ranges, Analytics-only export, same-day saved check-in time corrections with reason/original time/audit, red-neutral UI, and date-column 1/0 attendance export are implemented. The selected date range includes its endpoints and may include today (partial-day notice). Matrix exports include zero-visit members; 0 means no matching recorded visit. Underlying attendance remains row-based and unique per member/day. Live authorization and date/backdated-entry policies are still pending. See [current requirements](PROJECT_BRIEF.md#september-22-ui-and-reporting-supersedes-earlier-reporting-details).

@@ -7,3 +7,4 @@
   .live-shell .sidebar .nav-item svg { flex-shrink: 0; }
   .live-shell .main-shell { margin-left: 0; }
 }
+.live-shell a.nav-item, .live-shell a.brand { text-decoration: none; }

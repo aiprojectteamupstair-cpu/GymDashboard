@@ -113,6 +113,44 @@ cleanup does not establish current cloud reachability or change Auth accounts.
 
 ## Checks
 
+### October 9 Verification
+
+The active local and hosted UI share these routes:
+
+| Screen | Path |
+| --- | --- |
+| Dashboard | `/` |
+| Members | `/members` |
+| Member profile | `/members/:id` (stable internal member ID) |
+| Check-in | `/check-in` |
+| Analytics | `/analytics` |
+| Packages & Discounts | `/packages-discounts` |
+| Staff accounts (Admin only) | `/staff-accounts` |
+
+Tabs are native links with same-tab History API navigation. Reload and browser
+Back/Forward preserve the page; sign-in retains the requested deep link. Explicit
+sign-out returns to `/`. Unknown paths, missing members and unauthorized account
+pages show clear states after authentication. URL navigation does not grant access.
+Vercel's SPA fallback uses its documented
+[negative-lookahead rewrite syntax](https://vercel.com/docs/project-configuration/vercel-json#negative-lookahead)
+and excludes `/api`, `/supabase`, `/assets` and file paths. The relay remains first.
+
+All member-category profile calendars and editors now use calendar months,
+including February/leap years. Staff/Employee no longer has overlapping 25th-to-25th
+periods. Stored attendance, history, category-at-visit filters and export data are
+unchanged; only the workbook's calendar explanation was updated.
+
+- 92 unit tests, lint and both production/local builds passed.
+- `scripts/test-routing-ui.mjs`: synthetic sign-in/deep links, every tab reload,
+  profile history navigation, canonical URLs, sign-out isolation, route denial,
+  not-found states and Staff month boundaries passed on desktop/mobile. Screenshots
+  under ignored `.local-db/ui-checks/` were visually checked.
+- Existing `scripts/test-attendance-ui.mjs` check-in, renewal, DMY, unknown-history
+  and Admin/Staff attendance-editing regressions passed with native link selectors.
+- Browser tests use synthetic intercepted API responses; no real members, visits,
+  Auth identities, database policies or cloud deployment were changed. Vercel
+  redeployment and real authenticated hosted deep-link checks remain pending.
+
 ### October 6 Verification
 
 - Fixed profile action callbacks and renewal member binding. Profiles tolerate

@@ -45,7 +45,7 @@ export function exportTables(data, { start = '', end = '', category = 'all' } = 
       ['Timezone', 'Myanmar (Asia/Rangoon)'], ['Members', members.length], ['Memberships', memberships.length], ['Attendance', attendance.length], ['PT purchases', training.length],
       ['Notes', 'Attendance: 1 = recorded presence. Blank = no matching check-in record, not proof of absence. Zero values are retained for calculations but displayed as blank. Includes selected members even with no visits. Current category or matching historical visits determine the selected population.'],
       ['Dates and status', 'End dates include admin overrides. Status and age are as of export date. Attendance columns cover every day of the selected period.'],
-      ['Staff calendar', 'Staff profile cycles include the 25th at both ends. Attendance sheet lists each actual visit once.'],
+      ['Attendance calendar', 'All member categories use calendar months, from the 1st to the last day. Attendance sheet lists each actual visit once.'],
       ['Voucher No.', 'Memberships lists each saved membership voucher. A voucher may cover multiple people and is not a unique member ID. Blank means not recorded.'],
     ] },
     { name: 'Members', headers: ['Member ID', 'Name', 'Category', 'Phone', 'Age', 'Student ID', 'Profile status', 'Remark'],

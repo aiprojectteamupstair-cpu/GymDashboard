@@ -10,7 +10,7 @@ export function AttendanceCalendarDialog({ data, member, today, initialMonth, on
   const [changes, setChanges] = useState({});
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
-  const period = calendarPeriod(month, member.category_id === 'staff');
+  const period = calendarPeriod(month);
   const rows = data.attendance.filter(row => row.member_id === member.id);
   const offset = (new Date(`${period.start}T00:00:00Z`).getUTCDay() + 6) % 7;
   const pending = Object.values(changes).sort((a,b) => a.date.localeCompare(b.date));

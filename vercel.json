@@ -3,6 +3,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/supabase/:__supabase_path*", "destination": "/api/supabase?__supabase_path=:__supabase_path*" }
+    { "source": "/supabase/:__supabase_path*", "destination": "/api/supabase?__supabase_path=:__supabase_path*" },
+    { "source": "/((?!api(?:/|$)|supabase(?:/|$)|assets(?:/|$)|.*\\.[^/]+$).*)", "destination": "/index.html" }
   ]
 }
