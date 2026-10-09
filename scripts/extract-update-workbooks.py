@@ -4,13 +4,17 @@ import hashlib
 import json
 import pathlib
 import shutil
-import sys
+import argparse
 import openpyxl
 
-destination = pathlib.Path('.private-imports/update-2026-10-03')
+parser = argparse.ArgumentParser()
+parser.add_argument('--output', default='.private-imports/update-2026-10-03')
+parser.add_argument('files', nargs=2)
+args = parser.parse_args()
+destination = pathlib.Path(args.output)
 destination.mkdir(parents=True, exist_ok=True)
 report = []
-for index, argument in enumerate(sys.argv[1:]):
+for index, argument in enumerate(args.files):
     source = pathlib.Path(argument)
     digest = hashlib.sha256(source.read_bytes()).hexdigest()
     formulas = openpyxl.load_workbook(source, read_only=True, data_only=False)

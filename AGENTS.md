@@ -2,6 +2,25 @@
 
 Last updated: 2026-10-09. Business: The Community Fitness By Strategy First Gym.
 
+## October 9 October-through-8 workbook import
+
+- Imported the two user-supplied October 8 workbooks into approved **TCF User's
+  Database**, `snbfdktwrgzhwjqmyhdz`. Successful transaction added 7 members,
+  20 memberships and 357 date-only visits; totals 468/565/22 PT/5,821 attendance.
+  Website records created during reconciliation were retained, not duplicated.
+- User explicitly confirmed CMF-0411 belongs to C178; renewal saved 07/10/2026
+  through 07/01/2027. User then confirmed S069/CMF-0395 workbook expiry 06/11/2026;
+  the older 05/10/2026 override was removed in a separately audited transaction.
+- Five matched live memberships now carry imported source-date corrections with
+  prior origin/full before-state audited. Forty-three profiles have updates/remarks.
+  Existing IDs retained; collision allocations and unresolved CMF-0392/shared PT
+  details are in [import report](docs/WORKBOOK_UPDATE_2026_10_09.md).
+- All 5,464 pre-existing visits, 540 untouched memberships and 22 PT purchases
+  verified unchanged. All 530 resolved source dates present, no daily duplicates,
+  C123 still absent, RLS remains enabled. Atomic rollback trial and replay passed;
+  92 unit tests passed. Private sources/backups/payloads remain ignored.
+- No local DB, Auth, schema, grants, Edge deployment or website deployment changes.
+
 ## October 9 page routes and normal Staff calendar months
 
 - Active local/cloud UI uses browser URLs: `/`, `/members`, `/members/:id`,
