@@ -1,6 +1,26 @@
 # Project context and working rules
 
-Last updated: 2026-10-09. Business: The Community Fitness By Strategy First Gym.
+Last updated: 2026-10-12. Business: The Community Fitness By Strategy First Gym.
+
+## October 12 compact attendance editor and member email
+
+- Edit Attendance has a viewport-fitted calendar and a single changed-date selector,
+  optional time for new visits, no reason field and no existing-time-correction
+  section. Both Admin/Staff retain attendance authority. Other time-editing flows
+  and their safeguards remain unchanged.
+- Missing time creates `record_origin=live`, `time_source=manual_date_only` and
+  `checked_in_at=null`, never a fabricated time or imported provenance. Existing
+  timestamps survive restore. Audit notes are automatically labelled as such;
+  attribution, reasons from older clients, stale checks and idempotency remain.
+- Optional `members.email` is in create/edit/profile/read paths, validated by local
+  and cloud backends. Omitted email preserves the current value; blank clears it.
+  It is nonunique contact information, not an Auth identity. Excel stays five sheets
+  with its existing operational columns.
+- Migration `20261012081107_optional_attendance_time_member_email` is deployed to
+  approved `snbfdktwrgzhwjqmyhdz`. RLS and service-only RPC access remain unchanged.
+  Cloud Admin/Staff rollback tests left zero test records. No existing member values,
+  visits, Auth identities or Edge deployments changed. Vercel UI redeployment pending.
+- Verification details: [October 12 checks](docs/DEVELOPMENT.md#october-12-verification).
 
 ## October 9 October-through-8 workbook import
 

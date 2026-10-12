@@ -151,6 +151,38 @@ unchanged; only the workbook's calendar explanation was updated.
   Auth identities, database policies or cloud deployment were changed. Vercel
   redeployment and real authenticated hosted deep-link checks remain pending.
 
+### October 12 Verification
+
+- The attendance dialog uses a bounded calendar plus one changed-date selector;
+  selecting an entire month does not add rows below it. Reason and existing-time
+  correction controls are removed. A new visit's time is optional. No-time visits
+  keep a null timestamp and explicit `manual_date_only` live provenance; analytics
+  includes presence but excludes unknown arrival times. Restore retains old times.
+- The server supplies an explicitly automatic audit note when no reason is sent.
+  All actor attribution, before/after history, retries, stale checks, active-account
+  and past-date checks remain. The separate time-correction workflow is unchanged.
+- Member email is optional on create/edit and visible on the profile. Both backends
+  validate and persist it; omission preserves existing email, blank clears it.
+  Email is not unique and does not create or modify an Auth account. No Excel
+  columns or imported values were changed.
+- Cloud migration `20261012081107_optional_attendance_time_member_email` is applied
+  to approved `snbfdktwrgzhwjqmyhdz`; CLI-created filename aligned to the remote
+  ledger. It adds nullable email and updates existing service-only, security-invoker
+  RPCs and attendance checks without relaxing browser grants or RLS.
+- `supabase/tests/optional_attendance_email.sql` passed against the cloud for both
+  active roles: create/edit email, malformed-email denial, no-time attendance,
+  retry, stale rejection, void and restore. The transaction was rolled back;
+  zero fixture profiles remain. Existing member/attendance values were not changed.
+- Synthetic browser checks cover check-in, renewal, unknown imported history,
+  optional/explicit times, email create/edit/reload and the 31-date six-row calendar.
+  No dialog or calendar overflow at 1366x768, 800x600, 390x844, 320x568 and 844x390;
+  screenshots under ignored `.local-db/ui-checks/` were visually checked.
+- Unit tests, isolated real PostgreSQL API/SQL checks, lint and both builds passed.
+  No Edge redeploy is needed. Vercel frontend redeployment and real authenticated
+  hosted-browser acceptance remain pending. The existing
+  [leaked-password protection warning](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection)
+  is unchanged; no new security-advisor findings.
+
 ### October 6 Verification
 
 - Fixed profile action callbacks and renewal member binding. Profiles tolerate

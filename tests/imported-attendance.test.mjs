@@ -17,3 +17,13 @@ test('imported assumed and unknown times count as visits but never as arrival-ho
   assert.match(formatAttendanceTime(data.attendance[0]), /assumed/);
   assert.equal(formatAttendanceTime(data.attendance[1]), 'Time not recorded');
 });
+
+test('manual date-only attendance counts as presence without inventing an arrival hour', () => {
+  const data=createEmptyData();
+  data.attendance=[{id:'manual-date',member_id:'a',attendance_date:'2026-10-01',checked_in_at:null,time_source:'manual_date_only',record_origin:'live'}];
+  const summary=attendanceInsights(data,'2026-10-01','2026-10-01');
+  assert.equal(summary.visits,1);
+  assert.equal(summary.unknownTimeVisits,1);
+  assert.equal(summary.hours.reduce((sum,h)=>sum+h.visits,0),0);
+  assert.equal(formatAttendanceTime(data.attendance[0]),'Time not recorded');
+});

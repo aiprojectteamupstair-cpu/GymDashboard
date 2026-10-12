@@ -8,8 +8,8 @@ export function applyAttendanceCalendar(data, input, actor, now) {
   if (!['super_admin', 'admin'].includes(actor?.role)) throw new Error('An authorized Admin or Staff account is required.');
   const member = data.members.find(row => row.id === input.member_id);
   if (!member) throw new Error('Member not found.');
-  const reason = input.reason?.trim();
-  if (!reason || reason.length > 500) throw new Error('Enter a correction reason of 1-500 characters.');
+  const reason = input.reason?.trim() || 'Attendance updated from member calendar (automatic note).';
+  if (reason.length > 500) throw new Error('Correction reason must not exceed 500 characters.');
   if (!Array.isArray(input.changes) || !input.changes.length || input.changes.length > 32) throw new Error('Choose 1-32 attendance dates.');
   const dates = new Set();
   const before = [], after = [];
@@ -27,12 +27,11 @@ export function applyAttendanceCalendar(data, input, actor, now) {
       if (!row || row.voided_at) throw new Error('No recorded visit to remove.');
       row.voided_at = now; row.void_reason = reason;
     } else {
-      if (change.time !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(change.time)) throw new Error('Enter a valid check-in time.');
-      if (!row && !change.time) throw new Error('Enter a check-in time for each new visit.');
-      const timestamp = change.time ? new Date(`${date}T${change.time}:00+06:30`).toISOString() : row.checked_in_at;
+      if (change.time != null && change.time !== '' && !/^([01]\d|2[0-3]):[0-5]\d$/.test(change.time)) throw new Error('Enter a valid check-in time.');
+      const timestamp = change.time ? new Date(`${date}T${change.time}:00+06:30`).toISOString() : row?.checked_in_at ?? null;
       if (!row) {
         row = { id:crypto.randomUUID(), member_id:member.id, membership_id:null, attendance_date:date,
-          checked_in_at:timestamp, recorded_at:now, record_origin:'live', time_source:'manual',
+          checked_in_at:timestamp, recorded_at:now, record_origin:'live', time_source:timestamp ? 'manual' : 'manual_date_only',
           checked_in_by:actor.id, member_code_snapshot:member.member_code, member_category_snapshot:categoryLabel(data,member), voided_at:null };
         data.attendance.push(row);
       } else {

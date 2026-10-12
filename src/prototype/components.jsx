@@ -32,7 +32,7 @@ export function StatCard({ label, value, description, icon: Icon, accent = false
   return <Tag className={`stat-card ${accent ? 'stat-accent' : ''} ${onClick ? 'stat-link' : ''}`} {...(onClick ? { onClick, type: 'button', 'aria-label': `View ${label.toLowerCase()}` } : {})}><div className="stat-top"><span>{label}</span><span className="stat-icon"><Icon size={20} /></span></div><strong>{value}</strong><div className="stat-bottom"><span>{description}</span>{onClick && <ArrowUpRight size={17} />}</div></Tag>;
 }
 
-export function Dialog({ title, subtitle, onClose, children, wide = false }) {
+export function Dialog({ title, subtitle, onClose, children, wide = false, className = '' }) {
   const mutation = useContext(MutationContext);
   const ref = useRef(null);
   const titleId = useId();
@@ -55,7 +55,7 @@ export function Dialog({ title, subtitle, onClose, children, wide = false }) {
       window.scrollTo({ top: scrollY, behavior: 'instant' });
     };
   }, []);
-  return <dialog ref={ref} className={`app-dialog ${wide ? 'dialog-wide' : ''}`} aria-labelledby={titleId} aria-busy={mutation.busy} onCancel={e => { e.preventDefault(); if (!mutation.busy) onClose(); }}>
+  return <dialog ref={ref} className={`app-dialog ${wide ? 'dialog-wide' : ''} ${className}`} aria-labelledby={titleId} aria-busy={mutation.busy} onCancel={e => { e.preventDefault(); if (!mutation.busy) onClose(); }}>
     <div className="dialog-heading"><div><h2 id={titleId}>{title}</h2>{subtitle && <p>{subtitle}</p>}</div><button disabled={mutation.busy} className="icon-button" onClick={onClose} aria-label="Close dialog"><X size={21} /></button></div>
     {mutation.error && <p role="alert" className="form-error">{mutation.error}</p>}
     {mutation.busy && <p role="status" className="soft-note">Saving securely… Please keep this dialog open.</p>}

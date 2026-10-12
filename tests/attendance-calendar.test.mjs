@@ -34,7 +34,7 @@ for (const role of ['super_admin', 'admin']) test(`${role} calendar adds, correc
   assert.equal(repo.getSnapshot().audit_events.filter(event=>event.action==='attendance.calendar').length,4);
 });
 
-test('calendar denies unknown roles, today/future/invalid dates, missing time/reason and stale or duplicate batches', () => {
+test('calendar denies unknown roles, today/future/invalid dates, malformed inputs and stale or duplicate batches', () => {
   const staff=setup('unregistered');
   assert.throws(()=>staff.repo.editAttendanceCalendar(staff.input([{date:'2026-10-01',present:true,time:'09:00',expected:null}])),/authorized/);
   const {repo,input}=setup();
@@ -43,18 +43,50 @@ test('calendar denies unknown roles, today/future/invalid dates, missing time/re
     {date:'2026-10-05',present:true,time:'09:00',expected:null},
     {date:'2026-10-06',present:true,time:'09:00',expected:null},
     {date:'2026-02-30',present:true,time:'09:00',expected:null},
-    {date:'2026-10-01',present:true,expected:null},
     {date:'2026-10-01',present:true,time:'25:00',expected:null},
     {date:'2026-10-01',present:true,time:'09:00'},
   ]) assert.throws(()=>repo.editAttendanceCalendar(input([change])));
   const valid={date:'2026-10-01',present:true,time:'09:00',expected:null};
-  assert.throws(()=>repo.editAttendanceCalendar({...input([valid]),reason:' '}));
+  assert.throws(()=>repo.editAttendanceCalendar({...input([valid]),reason:'x'.repeat(501)}));
   assert.throws(()=>repo.editAttendanceCalendar(input([valid,valid])),/once/);
   assert.deepEqual(repo.getSnapshot(),before);
   repo.editAttendanceCalendar(input([valid]));
   const saved=repo.getSnapshot();
   assert.throws(()=>repo.editAttendanceCalendar(input([{...valid,date:'2026-10-02'},valid])),/changed/);
   assert.deepEqual(repo.getSnapshot(),saved);
+});
+
+for (const role of ['super_admin', 'admin']) test(`${role} saves date-only attendance without a reason or time and preserves it on restore`, () => {
+  const {repo,member}=setup(role);
+  const change={date:'2026-10-01',present:true,expected:null};
+  repo.editAttendanceCalendar({member_id:member.id,changes:[change,{...change,date:'2026-10-02',time:''}]});
+  let row=repo.getSnapshot().attendance[0];
+  assert.equal(row.checked_in_at,null);
+  assert.equal(row.time_source,'manual_date_only');
+  assert.equal(row.record_origin,'live');
+  assert.match(row.correction_reason,/automatic note/);
+  repo.editAttendanceCalendar({member_id:member.id,changes:[{...change,present:false,expected:attendanceVersion(row)}]});
+  row=repo.getSnapshot().attendance[0];
+  repo.editAttendanceCalendar({member_id:member.id,changes:[{...change,time:'',expected:attendanceVersion(row)}]});
+  row=repo.getSnapshot().attendance[0];
+  assert.equal(row.voided_at,null);
+  assert.equal(row.checked_in_at,null);
+  assert.equal(row.time_source,'manual_date_only');
+  assert.equal(repo.getSnapshot().audit_events.filter(event=>event.action==='attendance.calendar').length,3);
+});
+
+test('optional member email is validated, persisted, editable and not cleared by older clients', () => {
+  const {repo}=setup();
+  const input={full_name:'Email Test',category_id:'guest',email:' member@example.test '};
+  const member=repo.saveMember(input).member;
+  assert.equal(member.email,'member@example.test');
+  assert.equal(repo.saveMember({full_name:member.full_name,category_id:member.category_id},member.id).member.email,member.email);
+  assert.throws(()=>repo.saveMember({...input,email:'bad'},member.id),/email/);
+  assert.throws(()=>repo.saveMember({...input,email:'a'.repeat(250)+'@example.test'},member.id),/email/);
+  assert.equal(repo.saveMember({...input,email:'new@example.test'},member.id).member.email,'new@example.test');
+  assert.equal(repo.saveMember({...input,email:''},member.id).member.email,null);
+  repo.reload();
+  assert.equal(repo.getSnapshot().members.find(row=>row.id===member.id).email,null);
 });
 
 test('calendar restoration preserves imported unknown times, snapshots and provenance', () => {

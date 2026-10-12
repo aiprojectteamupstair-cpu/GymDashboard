@@ -630,13 +630,53 @@ button:focus-visible,a:focus-visible { outline:3px solid var(--accent); }
 .editable-calendar button:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
 .attendance-editor .calendar-legend { padding:0 0 18px; }
 .pending-legend { border-bottom:2px dashed var(--accent); }
-.attendance-date-edits { display:grid; margin-bottom:18px; }
-.attendance-date-edit { display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:12px 0; border-top:1px solid var(--line); }
-.attendance-date-edit > div:first-child { flex:1; min-width:140px; }
-.attendance-date-edit small { display:block; color:var(--muted); font-size:12px; margin-top:4px; }
-.attendance-date-edit .field { max-width:160px; }
-.attendance-editor .calendar-time-details { margin-bottom:20px; }
-.calendar-time-details summary { cursor:pointer; color:var(--muted); font-size:14px; margin-bottom:12px; }
+.attendance-dialog[open] { display:flex; flex-direction:column; width:min(760px,calc(100vw - 24px)); max-width:calc(100vw - 24px); height:min(680px,calc(100dvh - 24px)); max-height:calc(100dvh - 24px); overflow:hidden; border-radius:8px; }
+.attendance-dialog .dialog-heading { position:static; padding:16px 20px; flex-shrink:0; }
+.attendance-dialog .dialog-heading h2 { font-size:20px; letter-spacing:0; }
+.attendance-dialog .dialog-heading p { margin-top:3px; overflow-wrap:anywhere; }
+.attendance-dialog .soft-note { padding:0; border:0; margin:0; }
+.attendance-dialog form { display:flex; flex-direction:column; flex:1; min-height:0; }
+.attendance-dialog .attendance-editor { display:flex; flex-direction:column; gap:12px; padding:16px 20px; flex:1; min-height:0; }
+.attendance-dialog .calendar-toolbar { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.attendance-dialog .calendar-controls { flex-wrap:nowrap; width:260px; max-width:100%; }
+.attendance-dialog .calendar-controls .button { flex:0 0 36px; padding:0; height:40px; min-height:40px; }
+.attendance-dialog .calendar-controls input { flex:1; width:150px; min-width:0; height:40px; }
+.attendance-dialog .editable-calendar { flex:1; min-height:0; padding:0; grid-template-rows:20px repeat(var(--calendar-weeks),minmax(0,1fr)); }
+.attendance-dialog .editable-calendar .calendar-day { height:auto; min-height:0; padding:4px; font-size:13px; flex-direction:row; align-items:center; gap:2px; }
+.attendance-dialog .calendar-day svg { width:12px; height:12px; flex-shrink:0; align-self:center; }
+.attendance-dialog .calendar-day.pending-change { outline:none; border-style:dashed; border-width:2px; padding:3px; }
+.attendance-dialog .calendar-day:focus-visible { outline:2px solid var(--ink); outline-offset:1px; }
+.attendance-dialog .calendar-weekday { padding:0; }
+.attendance-dialog .calendar-legend { padding:0; gap:10px; font-size:11px; flex-wrap:wrap; }
+.calendar-change-row { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) 42px; gap:10px; align-items:end; min-height:68px; border-top:1px solid var(--line); padding-top:10px; }
+.calendar-change-row .field { min-width:0; }
+.calendar-change-row .field label { font-size:12px; }
+.calendar-change-row .field input,.calendar-change-row .field select { min-width:0; width:100%; padding:8px; height:40px; }
+.calendar-change-row > .button { padding:0; width:42px; height:40px; }
+.calendar-change-status { align-self:center; font-size:12px; }
+.attendance-dialog .dialog-footer { position:static; flex-wrap:nowrap; padding:12px 20px; flex-shrink:0; }
+.attendance-dialog .dialog-footer > .soft-note { margin-right:auto; font-size:12px; }
+.profile-layout .detail-list dd { min-width:0; overflow-wrap:anywhere; }
+@media(max-width:540px) {
+  .attendance-dialog .dialog-heading,.attendance-dialog .attendance-editor { padding:12px; }
+  .attendance-dialog .dialog-footer { padding:10px 12px; gap:8px; }
+  .attendance-dialog .dialog-footer .button { padding:8px 10px; font-size:12px; }
+  .attendance-dialog .calendar-toolbar > .soft-note { display:none; }
+  .calendar-change-row { gap:6px; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 36px; }
+  .calendar-change-row > .button { width:36px; }
+  .attendance-dialog .calendar-controls { margin:auto; }
+}
+@media(max-height:550px) and (min-width:650px) {
+  .attendance-dialog { width:min(900px,calc(100vw - 24px)); }
+  .attendance-dialog .dialog-heading { padding:8px 16px; }
+  .attendance-dialog .dialog-heading p { margin:0; }
+  .attendance-dialog .attendance-editor { display:grid; grid-template-columns:minmax(0,1fr) 230px; grid-template-rows:42px minmax(0,1fr); gap:8px 18px; padding:10px 16px; }
+  .attendance-dialog .editable-calendar { grid-column:1; grid-row:2; height:100%; gap:3px; }
+  .attendance-dialog .calendar-legend { grid-column:2; grid-row:1; align-content:center; }
+  .attendance-dialog .calendar-change-row { grid-column:2; grid-row:2; grid-template-columns:minmax(0,1fr) 36px; align-content:start; }
+  .calendar-change-row > .field:first-child { grid-column:1/-1; }
+  .attendance-dialog .dialog-footer { padding:8px 16px; }
+}
 .attendance-editor .calendar-controls input { color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:8px; font:inherit; max-width:100%; }
 @media(max-width:1250px) { .dashboard-overview { grid-template-columns:minmax(0,1fr) minmax(260px,1fr); } .dashboard-overview > .panel:last-child { grid-column:1/-1; } .dashboard-overview > .panel:last-child .breakdown { flex-direction:row; justify-content:center; gap:36px; } .dashboard-overview .breakdown-legend { max-width:420px; flex:1; } }
 @media(max-width:650px) { .dashboard-overview { grid-template-columns:minmax(0,1fr); } .dashboard-overview > .panel:last-child .breakdown { flex-direction:column; gap:22px; } .dashboard-overview .breakdown-legend { width:100%; } .attendance-editor .calendar-day { height:48px; font-size:13px; } .attendance-editor .calendar-controls { justify-content:center; } }

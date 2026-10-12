@@ -78,7 +78,10 @@ export function createPrototypeRepository(storage = window.localStorage, clock =
         if (input.date_of_birth && (!validDate(input.date_of_birth) || input.date_of_birth > localDate(now))) throw new Error('Date of birth must be a valid date in the past.');
         const existing = id ? next.members.find(m => m.id === id) : null;
         if (id && !existing) throw new Error('Member no longer exists. Please refresh.');
+        const email = Object.hasOwn(input, 'email') ? input.email?.trim() || null : existing?.email || null;
+        if (email && (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) throw new Error('Enter a valid email address.');
         const changes = { full_name: name, category_id: input.category_id, contact_phone: input.contact_phone?.trim() || '', date_of_birth: input.date_of_birth || '', student_id: input.student_id?.trim() || '', remark: input.remark?.trim() || '' };
+        changes.email = email;
         const changedCategory = existing && existing.category_id !== input.category_id;
         if (changedCategory && input.category_id === 'guest') throw new Error('An existing member cannot be changed back to a trial guest.');
         if (existing?.category_id === 'guest' && changedCategory && !input.membership) throw new Error('Choose a package and plan to convert this guest.');

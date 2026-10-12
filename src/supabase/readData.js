@@ -5,7 +5,7 @@ export const COLUMNS = {
   packages: 'id,code,label,access_notes,allows_training,enabled,legacy,updated_at',
   membership_plans: 'id,label,duration_months,enabled',
   discounts: 'id,label,percentage,enabled,updated_at',
-  members: 'id,member_code,full_name,category_id,contact_phone,student_id,date_of_birth,remark,archived_at,created_at,updated_at,record_origin',
+  members: 'id,member_code,full_name,category_id,contact_phone,email,student_id,date_of_birth,remark,archived_at,created_at,updated_at,record_origin',
   member_codes: 'code,member_id,category_id,retired_at',
   memberships: 'id,member_id,package_id,package_snapshot,plan_id,plan_snapshot,discount_id,discount_snapshot,member_code_snapshot,member_category_snapshot,start_date,duration_months,calculated_end_date,source_end_date,override_end_date,override_reason,voucher_reference,remark,voided_at,created_at,record_origin,transaction_kind',
   training_purchases: 'id,member_id,membership_id,service_type,sessions,duration_months,start_date,end_date,remark,voided_at,created_at,record_origin',

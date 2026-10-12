@@ -36,9 +36,10 @@ test('PostgreSQL local API: authentication, transactions, permissions, retries a
     const first=await request('workspace',undefined,cookie);
     assert.equal(first.body.data.members.length,0);
     const command=(name,payload,id=crypto.randomUUID(),session=cookie)=>request('gym-commands',{command:name,payload,request_id:id},session);
-    const id=crypto.randomUUID(),input={full_name:'Local Integration Guest',category_id:'guest'};
+    const id=crypto.randomUUID(),input={full_name:'Local Integration Guest',category_id:'guest',email:'local@example.test'};
     const created=await command('member.save',input,id);
     assert.equal(created.status,200); const member=created.body.result.member;
+    assert.equal(member.email,'local@example.test');
     assert.equal((await command('member.save',input,id)).body.result.member.id,member.id);
     assert.equal((await command('member.save',{...input,full_name:'Changed'},id)).status,400);
     const checkins=await Promise.all([command('attendance.checkin',{id:member.id,acknowledged:true}),command('attendance.checkin',{id:member.id,acknowledged:true})]);
@@ -52,11 +53,13 @@ test('PostgreSQL local API: authentication, transactions, permissions, retries a
     assert.equal(staff.status,200);
     const receptionist=await request('login',{email:'reception@example.test',password:'test-password'});
     assert.equal((await request('admin-accounts',{action:'list'},receptionist.cookie)).status,403);
-    const calendar={member_id:member.id,reason:'Reception log verified',changes:[{date:'2026-01-02',present:true,time:'09:15',expected:null}]};
+    const calendar={member_id:member.id,changes:[{date:'2026-01-02',present:true,expected:null}]};
     const calendarId=crypto.randomUUID();
     assert.equal((await command('attendance.calendar',calendar,calendarId,receptionist.cookie)).status,200);
     assert.equal((await command('attendance.calendar',calendar,calendarId,receptionist.cookie)).status,200);
     const visit=(await request('workspace',undefined,cookie)).body.data.attendance.find(row=>row.attendance_date==='2026-01-02');
+    assert.equal(visit.checked_in_at,null);
+    assert.equal(visit.time_source,'manual_date_only');
     const remove={...calendar,changes:[{date:'2026-01-02',present:false,expected:attendanceVersion(visit)}]};
     const edits=await Promise.all([command('attendance.calendar',remove),command('attendance.calendar',remove,crypto.randomUUID(),receptionist.cookie)]);
     assert.deepEqual(edits.map(row=>row.status).sort(),[200,400]);
@@ -69,6 +72,7 @@ test('PostgreSQL local API: authentication, transactions, permissions, retries a
     await initializeDatabase(pool,seed);
     const persisted=await request('workspace',undefined,cookie);
     assert.equal(persisted.body.data.members.length,1);
+    assert.equal(persisted.body.data.members[0].email,'local@example.test');
     assert.equal(persisted.body.data.attendance.length,2);
     const independent=new pg.Client({...config,database}); await independent.connect();
     assert.equal(Number((await independent.query('SELECT count(*) FROM gym_local.members')).rows[0].count),1);

@@ -19,7 +19,7 @@ test('calendar SQL: real schema, service-only Admin/Staff access, concurrency, r
     pool=new pg.Pool({...config,database});
     await pool.query(`CREATE SCHEMA auth; CREATE TABLE auth.users(id uuid PRIMARY KEY);
       CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS 'SELECT null::uuid';`);
-    for(const file of ['20260929094219_community_fitness_foundation.sql','20261001040433_admin_provisioning_and_attendance_import.sql','20261001104539_live_workspace_commands.sql','20261001105350_admin_account_removal.sql','20261005084758_admin_attendance_calendar.sql','20261006111224_staff_attendance_calendar.sql']) {
+    for(const file of ['20260929094219_community_fitness_foundation.sql','20261001040433_admin_provisioning_and_attendance_import.sql','20261001104539_live_workspace_commands.sql','20261001105350_admin_account_removal.sql','20261005084758_admin_attendance_calendar.sql','20261006111224_staff_attendance_calendar.sql','20261012081107_optional_attendance_time_member_email.sql']) {
       const sql=await readFile(new URL(`../../supabase/migrations/${file}`,import.meta.url),'utf8');
       await pool.query(sql.replace(/\b(anon|authenticated|service_role)\b/g,name=>roles[name]));
     }
@@ -39,8 +39,8 @@ test('calendar SQL: real schema, service-only Admin/Staff access, concurrency, r
     await assert.rejects(invoke(input([add]),owner,crypto.randomUUID(),roles.authenticated),{code:'42501'});
     await assert.rejects(invoke(input([add]),crypto.randomUUID()),{code:'42501'});
     await assert.rejects(invoke(input([{...add,date:'2999-01-01'}])),/past/);
-    await assert.rejects(invoke({...input([add]),reason:''}),/reason/);
-    await assert.rejects(invoke(input([{...add,time:undefined}])),/time/);
+    await assert.rejects(invoke({...input([add]),reason:'x'.repeat(501)}),/reason/);
+    await assert.rejects(invoke(input([{...add,time:'25:00'}])),/time/);
     await assert.rejects(invoke(input([add,add])),/once/);
     assert.equal(await row(),undefined);
     const request=crypto.randomUUID();
@@ -64,6 +64,38 @@ test('calendar SQL: real schema, service-only Admin/Staff access, concurrency, r
     assert.equal(current.original_checked_in_at,original.checked_in_at);
     assert.equal((await pool.query("SELECT count(*) FROM public.audit_events WHERE action='attendance.calendar'")).rows[0].count,'4');
     await invoke(input([{...add,date:'2026-01-04'}]),staff);
+    for (const actor of [owner,staff]) {
+      const date=actor===owner?'2026-01-06':'2026-01-07';
+      const payload={member_id:member,changes:[{date,present:true,time:'',expected:null}]};
+      const requestId=crypto.randomUUID();
+      await invoke(payload,actor,requestId);
+      await invoke(payload,actor,requestId);
+      const getVisit=async()=> (await pool.query('SELECT to_jsonb(a) AS row FROM public.attendance a WHERE member_id=$1 AND attendance_date=$2',[member,date])).rows[0].row;
+      let dateOnly=await getVisit();
+      assert.equal(dateOnly.checked_in_at,null);
+      assert.equal(dateOnly.time_source,'manual_date_only');
+      assert.equal(dateOnly.record_origin,'live');
+      assert.match(dateOnly.correction_reason,/automatic note/);
+      await invoke({member_id:member,changes:[{date,present:false,expected:attendanceVersion(dateOnly)}]},actor);
+      dateOnly=await getVisit();
+      await invoke({member_id:member,changes:[{date,present:true,expected:attendanceVersion(dateOnly)}]},actor);
+      dateOnly=await getVisit();
+      assert.equal(dateOnly.checked_in_at,null);
+      assert.equal(dateOnly.voided_at,null);
+    }
+    const saveMember=async payload=>(await pool.query("SELECT public.gym_command($1,$2,'member.save',$3) AS result",[staff,crypto.randomUUID(),payload])).rows[0].result;
+    const newEmailMember=await saveMember({full_name:'Email fixture',category_id:'guest',email:' person@example.test '});
+    const emailMember=async()=>(await pool.query('SELECT to_jsonb(m) AS row FROM public.members m WHERE id=$1',[newEmailMember.member_id])).rows[0].row;
+    assert.equal((await emailMember()).email,'person@example.test');
+    for(const email of ['updated@example.test',undefined,'']) {
+      const before=await emailMember();
+      await saveMember({id:before.id,full_name:before.full_name,category_id:before.category_id,expected_updated_at:before.updated_at,...(email===undefined?{}:{email})});
+      assert.equal((await emailMember()).email,email===undefined?before.email:email||null);
+    }
+    await assert.rejects(saveMember({full_name:'Bad email',category_id:'guest',email:'invalid'}),/email/);
+    await assert.rejects(saveMember({full_name:'Bad email',category_id:'guest',email:'x'.repeat(250)+'@example.test'}),/email/);
+    const auditAfter=(await pool.query("SELECT changes->'after' AS row FROM public.audit_events WHERE entity_id=$1 AND action='member.save' ORDER BY occurred_at DESC LIMIT 1",[newEmailMember.member_id])).rows[0].row;
+    assert.equal(auditAfter.email,null);
     await pool.query('UPDATE public.app_staff SET enabled=false WHERE user_id=$1',[staff]);
     await assert.rejects(invoke(input([{...add,date:'2026-01-05'}]),staff),{code:'42501'});
     await pool.query('UPDATE public.app_staff SET enabled=false WHERE user_id=$1',[owner]);

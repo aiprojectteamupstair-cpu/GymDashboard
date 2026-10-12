@@ -18,7 +18,7 @@ const page=await browser.newPage({viewport:{width:1600,height:1000}});
 // Missing imported dates and package snapshots must not crash a profile.
 data.members.push({id:'ui-unknown',full_name:'Unknown History Member',member_code:'C002',category_id:'customer',previous_codes:[]});
 data.memberships.push(...[1,2].map(index=>({id:`unknown-${index}`,member_id:'ui-unknown',start_date:null,source_end_date:null,package_snapshot:null,record_origin:'import'})));
-let checkins=0, renewals=0;
+let checkins=0, renewals=0, profileSaves=0;
 const errors=[]; page.on('pageerror',error=>errors.push(error.message));
 await mkdir('.local-db/ui-checks',{recursive:true});
 await page.route('**/api/local/**',async route=>{
@@ -41,6 +41,11 @@ await page.route('**/api/local/**',async route=>{
       assert.equal(request.payload.member_id,'ui-member');
       assert.equal(request.payload.start_date,'2026-10-06');
       renewals++; body={result:{member_id:'ui-member'}};
+    } else if(request.command==='member.save') {
+      const existing=data.members.find(row=>row.id===request.payload.id);
+      if(existing) Object.assign(existing,request.payload);
+      else data.members.push({...request.payload,id:'email-fixture',member_code:'G001',previous_codes:[]});
+      profileSaves++; body={result:{member_id:existing?.id || 'email-fixture'}};
     } else throw new Error(`Unexpected command: ${request.command}`);
   } else throw new Error(`Unexpected fixture route: ${path}`);
   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});
@@ -89,21 +94,18 @@ try {
   const dialog=page.getByRole('dialog');
   await dialog.getByLabel('Attendance month').fill(yesterday.slice(0,7));
   await dialog.getByRole('button',{name:`${yesterday}: No recorded visit`,exact:true}).click();
-  await dialog.getByLabel('Check-in time').fill('09:15');
-  await dialog.getByLabel('Reason for changes').fill('Verified reception log');
   await page.screenshot({path:'.local-db/ui-checks/calendar-desktop.png',fullPage:true});
   await dialog.getByRole('button',{name:'Save changes'}).click();
   await dialog.waitFor({state:'hidden'}); assert.equal(saves,1);
-  assert.ok(data.attendance.some(row=>row.attendance_date===yesterday));
+  assert.equal(data.attendance.find(row=>row.attendance_date===yesterday).checked_in_at,null);
+  assert.equal(data.attendance.find(row=>row.attendance_date===yesterday).time_source,'manual_date_only');
   await page.getByRole('button',{name:'Edit attendance',exact:true}).click();
   await dialog.getByRole('button',{name:`${yesterday}: Present`,exact:true}).click();
-  await dialog.getByLabel('Reason for changes').fill('Corrected duplicate paper entry');
   await dialog.getByRole('button',{name:'Save changes'}).click();
   await dialog.waitFor({state:'hidden'}); assert.equal(saves,2);
   assert.ok(data.attendance.find(row=>row.attendance_date===yesterday).voided_at);
   await page.getByRole('button',{name:'Edit attendance',exact:true}).click();
   await dialog.getByRole('button',{name:`${yesterday}: No recorded visit`,exact:true}).click();
-  await dialog.getByLabel('Reason for changes').fill('Visit confirmed');
   await dialog.getByRole('button',{name:'Save changes'}).click();
   await dialog.waitFor({state:'hidden'}); assert.equal(saves,3);
   assert.equal(data.attendance.find(row=>row.attendance_date===yesterday).voided_at,null);
@@ -115,7 +117,6 @@ try {
   await page.getByRole('button',{name:'Open profile for Calendar Test Member'}).click();
   await page.getByRole('button',{name:'Edit attendance',exact:true}).click();
   await dialog.getByRole('button',{name:`${yesterday}: Present`,exact:true}).click();
-  await dialog.getByLabel('Reason for changes').fill('Mobile calendar check');
   await page.screenshot({path:'.local-db/ui-checks/calendar-mobile.png'});
   assert.ok(await dialog.evaluate(node=>node.getBoundingClientRect().right<=innerWidth));
   await dialog.getByRole('button',{name:'Save changes'}).click();
@@ -131,7 +132,6 @@ try {
   await page.getByRole('button',{name:'Open profile for Calendar Test Member'}).click();
   await page.getByRole('button',{name:'Edit attendance',exact:true}).click();
   await dialog.getByRole('button',{name:`${yesterday}: No recorded visit`,exact:true}).click();
-  await dialog.getByLabel('Reason for changes').fill('Staff restored verified attendance');
   await dialog.getByRole('button',{name:'Save changes'}).click();
   await dialog.waitFor({state:'hidden'}); assert.equal(saves,5);
   await page.getByRole('button',{name:'Renew package',exact:true}).click();
@@ -144,6 +144,55 @@ try {
   await page.getByLabel('Analysis end date',{exact:true}).fill('03/10/2026');
   await page.screenshot({path:'.local-db/ui-checks/analytics-mobile.png',fullPage:true});
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+
+  await page.getByRole('link',{name:'Members',exact:true}).click();
+  await page.getByRole('button',{name:'Open profile for Calendar Test Member'}).click();
+  await page.getByRole('button',{name:'Edit profile',exact:true}).click();
+  await dialog.getByLabel('Email (optional)').fill('profile@example.test');
+  await dialog.getByRole('button',{name:'Save changes',exact:true}).click();
+  await dialog.waitFor({state:'hidden'});
+  await page.getByText('profile@example.test',{exact:true}).waitFor();
+  await page.reload();
+  await page.getByText('profile@example.test',{exact:true}).waitFor();
+  assert.equal(profileSaves,1);
+  await page.getByRole('button',{name:'Edit attendance',exact:true}).click();
+  assert.equal(await dialog.getByText('Reason for changes',{exact:true}).count(),0);
+  assert.equal(await dialog.locator('details').count(),0);
+  await dialog.getByLabel('Attendance month').fill('2026-08');
+  for(let day=1;day<=31;day++) await dialog.getByRole('button',{name:`2026-08-${String(day).padStart(2,'0')}: No recorded visit`,exact:true}).click();
+  await dialog.getByLabel('Check-in time (optional)').fill('09:15');
+  for(const viewport of [{width:1366,height:768},{width:800,height:600},{width:390,height:844},{width:320,height:568},{width:844,height:390}]) {
+    await page.setViewportSize(viewport);
+    const dimensions=await dialog.evaluate(node=>{
+      const rect=node.getBoundingClientRect();
+      const footer=node.querySelector('.dialog-footer').getBoundingClientRect();
+      return {height:node.clientHeight,scroll:node.scrollHeight,width:node.clientWidth,scrollWidth:node.scrollWidth,bottom:rect.bottom,right:rect.right,footerBottom:footer.bottom,viewportHeight:innerHeight,viewportWidth:innerWidth,
+        overflow:[...node.querySelectorAll('.dialog-body,.editable-calendar,.calendar-change-row')].map(el=>[el.clientHeight,el.scrollHeight])};
+    });
+    assert.ok(dimensions.scroll<=dimensions.height+1,JSON.stringify({viewport,dimensions}));
+    assert.ok(dimensions.scrollWidth<=dimensions.width+1);
+    assert.ok(dimensions.bottom<=dimensions.viewportHeight && dimensions.right<=dimensions.viewportWidth);
+    assert.ok(dimensions.footerBottom<=dimensions.bottom);
+    assert.ok(dimensions.overflow.every(([height,scroll])=>scroll<=height+1),JSON.stringify({viewport,dimensions}));
+    await page.screenshot({path:`.local-db/ui-checks/calendar-compact-${viewport.width}x${viewport.height}.png`});
+  }
+  await dialog.getByRole('button',{name:'Save changes'}).click();
+  await dialog.waitFor({state:'hidden'});
+  const august=data.attendance.filter(row=>row.attendance_date.startsWith('2026-08'));
+  assert.equal(august.length,31);
+  assert.equal(august.filter(row=>row.checked_in_at===null).length,30);
+  assert.equal(august.find(row=>row.attendance_date==='2026-08-31').checked_in_at,'2026-08-31T02:45:00.000Z');
+  await page.setViewportSize({width:390,height:844});
+  await page.getByRole('link',{name:'Members',exact:true}).click();
+  await page.getByRole('button',{name:'New member',exact:true}).click();
+  await dialog.getByLabel('Full name *').fill('Email Form Fixture');
+  await dialog.getByLabel('Member category *').selectOption('guest');
+  await dialog.getByLabel('Email (optional)').fill('guest@example.test');
+  await page.screenshot({path:'.local-db/ui-checks/member-email-mobile.png'});
+  await dialog.getByRole('button',{name:'Create guest',exact:true}).click();
+  await dialog.waitFor({state:'hidden'});
+  assert.equal(profileSaves,2);
+  assert.equal(data.members.find(row=>row.id==='email-fixture').email,'guest@example.test');
   assert.deepEqual(errors,[]);
   console.log('Desktop/mobile profiles with unknown history, check-in, bound renewal, DMY input, Admin/Staff calendars and layout passed (synthetic API; no workspace data changed).');
 } finally { await browser.close(); }
