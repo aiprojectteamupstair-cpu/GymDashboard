@@ -1,6 +1,7 @@
 import { createEmptyData } from '../prototype/dataLifecycle.js';
 
 export const COLUMNS = {
+  body_measurements: 'id,member_id,measurement_month,weight_kg,fat_mass_kg,skeletal_muscle_kg,body_fat_percent,created_at,updated_at,deleted_at',
   member_categories: 'id,code,label,prefix,digits,enabled',
   packages: 'id,code,label,access_notes,allows_training,enabled,legacy,updated_at',
   membership_plans: 'id,label,duration_months,enabled',

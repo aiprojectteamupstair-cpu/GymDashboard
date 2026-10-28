@@ -2,7 +2,7 @@ import { SUPABASE_PROJECT_REF } from '../../config/backend.mjs';
 
 const upstreamOrigin = `https://${SUPABASE_PROJECT_REF}.supabase.co`;
 const tables = new Set(['app_staff', 'member_categories', 'packages', 'membership_plans', 'discounts',
-  'members', 'member_codes', 'memberships', 'training_purchases', 'attendance', 'audit_events']);
+  'members', 'member_codes', 'memberships', 'training_purchases', 'attendance', 'audit_events', 'body_measurements']);
 const forwardedHeaders = ['apikey', 'authorization', 'content-type', 'accept', 'prefer', 'range',
   'range-unit', 'x-client-info', 'x-supabase-api-version'];
 const responseHeaders = ['content-type', 'content-range', 'range-unit', 'retry-after', 'x-supabase-api-version'];

@@ -137,12 +137,12 @@ test('attendance matrix includes non-visitors and reconciles presence and histor
   assert.equal(tables.find(t => t.name === 'Memberships').rows.length, data.memberships.length);
 });
 
-test('Excel export has five worksheets, typed dates, filters and literal input text', () => {
+test('Excel export has six worksheets, typed dates, filters and literal input text', () => {
   const data = createDemoData('2026-09-18', now);
   data.members[0].full_name = '=HYPERLINK("invalid") & <test>';
   const zip = unzipSync(createPrototypeWorkbook(data));
   const workbook = strFromU8(zip['xl/workbook.xml']);
-  assert.equal((workbook.match(/<sheet /g) || []).length, 5);
+  assert.equal((workbook.match(/<sheet /g) || []).length, 6);
   const members = strFromU8(zip['xl/worksheets/sheet2.xml']);
   assert.ok(members.includes('=HYPERLINK(&quot;invalid&quot;) &amp; &lt;test&gt;'));
   assert.ok(!members.includes('<f>'));
@@ -289,7 +289,7 @@ test('attendance insights deduplicate, exclude voids, compare equal periods and 
   const exported = exportTables({ ...data, members:[{id:'a',member_code:'E001',full_name:'A',category_id:'staff'},{id:'b',member_code:'E002',full_name:'B',category_id:'staff'},{id:'z',member_code:'E003',full_name:'Z',category_id:'staff'}], memberships:[], training_purchases:[] }, {start:'2026-09-07',end:'2026-09-13',category:'staff'});
   assert.equal(exported.find(t=>t.name==='Attendance').rows.flatMap(row=>row.slice(3)).reduce((a,b)=>a+b,0), result.visits);
   assert.ok(exported.find(t=>t.name==='Attendance').rows.find(row=>row[0]==='E003').slice(3).every(n=>n===0));
-  assert.deepEqual(exported.slice(1).map(t=>t.headers.length), [8,10,10,6]);
+  assert.deepEqual(exported.slice(1).map(t=>t.headers.length), [8,10,10,6,8]);
 });
 test('time corrections preserve daily identity and original time with an audit trail', () => {
   const {repository} = setup();

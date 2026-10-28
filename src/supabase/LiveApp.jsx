@@ -22,7 +22,7 @@ export default function LiveApp() {
   const [sync] = useState(() => createWorkspaceSync(owner => backend.loadWorkspace(owner), setWorkspace));
   const { snapshot, busy } = workspace;
   const [error, setError] = useState('');
-  const [{ page, memberId }, setRoute] = useState(() => resolveRoute(window.location.pathname));
+  const [{ page, memberId, profileTab }, setRoute] = useState(() => resolveRoute(window.location.pathname));
   const [summary, setSummary] = useState(null);
   const [modal, setModal] = useState(null);
   const [mutation, setMutation] = useState({ busy: false, error: '' });
@@ -94,7 +94,7 @@ export default function LiveApp() {
   const openModal = value => { setMutation({ busy: false, error: '' }); setModal(value); };
   async function save(command, payload) {
     if (saving.current) return;
-    saving.current = true; setMutation({ busy: true, error: '' }); setNotice('');
+    saving.current = true; setMutation({ busy: true, error: '' }); setNotice(''); setError('');
     const owner = sync.current().owner;
     try {
       const result = await sendCommand(command, payload);
@@ -125,7 +125,7 @@ export default function LiveApp() {
         {notice && <p role="status" className="soft-note">{notice}</p>}
         {(error || workspace.error) && <p role="alert" className="error-banner">{error || workspace.error}</p>}
         {page === 'dashboard' && <Dashboard {...common} onNavigate={navigate} onDrilldown={setSummary} />}
-        {page === 'members' && (memberId ? member ? <MemberProfile key={member.id} {...common} member={member} onBack={() => navigate('members')} onEdit={() => openModal({ type: 'member', id: member.id })} onArchive={() => openModal({ type: 'archive', id: member.id })} /> : <EmptyState title="Member not found" message="This member is unavailable in your workspace." action={<Button onClick={() => navigate('members')}>Back to members</Button>} /> : <MemberDirectory {...common} onAdd={() => openModal({ type: 'member' })} />)}
+        {page === 'members' && (memberId ? member ? <MemberProfile key={member.id} {...common} member={member} profileTab={profileTab} onProfileTab={tab=>{setMutation({busy:false,error:''});goTo(memberPath(member.id,tab));}} onSaveMeasurement={values=>save('measurement.save',values)} onDeleteMeasurement={row=>openModal({type:'measurement-delete',row})} mutation={mutation} onBack={() => navigate('members')} onEdit={() => openModal({ type: 'member', id: member.id })} onArchive={() => openModal({ type: 'archive', id: member.id })} /> : <EmptyState title="Member not found" message="This member is unavailable in your workspace." action={<Button onClick={() => navigate('members')}>Back to members</Button>} /> : <MemberDirectory {...common} onAdd={() => openModal({ type: 'member' })} />)}
         {page === 'analytics' && <Analytics data={data} today={today} onExport={exportData} />}
         {page === 'checkin' && <CheckInPage {...common} />}
         {page === 'catalogue' && <CataloguePage data={data} canEdit={staff.role_code === 'super_admin'} onCreate={kind => openModal({ type: 'catalogue', kind })} onEdit={(kind, row) => openModal({ type: 'catalogue', kind, row })} onToggle={(kind, row) => save('catalogue.status', { kind, id: row.id, enabled: !row.enabled, expected_updated_at: row.updated_at })} />}

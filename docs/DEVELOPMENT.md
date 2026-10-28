@@ -2,6 +2,62 @@
 
 Current handover workflow, October 5, 2026. This supersedes older backend setup notes.
 
+## October 28 verification
+
+The new monthly body-measurement feature is described in
+[BODY_MEASUREMENTS.md](BODY_MEASUREMENTS.md). These checks cover the October 28
+changes; older sections below remain historical verification records.
+
+- 103 unit tests, ESLint, Supabase production build and local PostgreSQL build passed.
+- Isolated real PostgreSQL tests passed for local HTTP commands/persistence and
+  cloud-style SQL/RLS: Admin/Staff CRUD, recalculation, invalid inputs, uniqueness,
+  concurrent edits, idempotent retries, revocation, stale writes and audit retention.
+- Synthetic browser tests passed deep links/reload/Back navigation, Admin/Staff
+  measurement creation/edit/deletion, cancellation, error retry, input validation,
+  missing-month charts and Excel generation. Screenshots reviewed at 1366x900,
+  390x844 and 320x568, including dark mode and horizontal-overflow checks.
+- Existing attendance/member-email/renewal and routing browser suites passed.
+- Six-sheet XLSX generated from synthetic data imported/rendered successfully.
+  Measurement formulas and cached values reconciled; no spreadsheet error cells.
+  Only recorded rows exported; deleted/unmeasured and out-of-scope entries excluded.
+- Cloud migration `20261028083327_monthly_body_measurements` applied and
+  `gym-commands` v5 deployed with JWT verification. Rollback-only Admin/Staff SQL
+  acceptance passed with zero retained probe members, measurement rows or audits.
+  Existing totals remained 483 members / 603 memberships / 6,415 attendance /
+  22 PT purchases. No Auth identities or existing business data were changed.
+- New table has RLS; anonymous/browser RPC execution and browser direct writes
+  remain denied. Security advisor reported only the pre-existing
+  [leaked-password-protection warning](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
+  Performance advisor had informational unused indexes, including the two new
+  actor FK indexes on an empty table; these were retained.
+
+Re-run with the local dev server running:
+
+```powershell
+npm test
+npm run lint
+npm run build
+npm run build:local
+node --test server/local/api.test.mjs server/supabase/body-measurements-db.test.mjs
+node scripts/test-measurements-ui.mjs
+node scripts/test-attendance-ui.mjs
+node scripts/test-routing-ui.mjs
+node scripts/test-export-visual.mjs
+```
+
+The browser scripts use `PLAYWRIGHT_MODULE` when Playwright is bundled outside
+the project. Export rendering uses `BUNDLED_NODE_MODULES` for Artifact Tool.
+Generated synthetic previews and workbooks stay ignored under `.local-db/ui-checks/`.
+This PC's C drive is full; test temporary files/downloads use D drive. Native
+headless browser downloads were intermittent (canceled in the final run), so
+actual file-saving needs a manual browser check. The browser-generated XLSX
+bytes were independently inspected; sheet content, formulas and rendering passed.
+
+**Still pending:** deploy the updated frontend and `/supabase` relay together on
+Vercel. The new table must be in that relay's read allowlist. Then verify actual
+authenticated hosted Admin/Staff UI operations. Synthetic browser tests and live
+SQL acceptance do not substitute for a real hosted session.
+
 ## Roles and attendance calendar
 
 Account labels are now Admin (stored `super_admin`) and Staff (stored `admin`).

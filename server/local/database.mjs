@@ -24,6 +24,7 @@ export async function initializeDatabase(pool, seed) {
       await db.query(`CREATE TABLE IF NOT EXISTS gym_local.${name} (id text PRIMARY KEY, data jsonb NOT NULL CHECK (data->>'id' = id))`);
     }
     await db.query(`CREATE UNIQUE INDEX IF NOT EXISTS members_code ON gym_local.members ((data->>'member_code'));
+      CREATE UNIQUE INDEX IF NOT EXISTS measurement_month ON gym_local.body_measurements ((data->>'member_id'), (data->>'measurement_month')) WHERE data->>'deleted_at' IS NULL;
       CREATE UNIQUE INDEX IF NOT EXISTS attendance_day ON gym_local.attendance ((data->>'member_id'), (data->>'attendance_date')) WHERE data->>'voided_at' IS NULL`);
     const { rows } = await db.query('SELECT version FROM gym_local.schema_version');
     if (!rows.length) {
@@ -71,6 +72,8 @@ export async function runCommand(db, actor, command, payload, requestId) {
   };
   let result;
   switch (command) {
+    case 'measurement.save': result = repo.saveBodyMeasurement(p); break;
+    case 'measurement.delete': result = repo.deleteBodyMeasurement(p); break;
     case 'member.save':
       if (p.id) assertFresh(data.members.find(row => row.id === p.id));
       result = repo.saveMember(p, p.id); break;

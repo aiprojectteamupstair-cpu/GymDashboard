@@ -3,15 +3,17 @@ import { categoryLabel, currentMembership, localDate, validDate } from './domain
 import { CATEGORIES, nextMemberCode, upgradeData } from './catalogue.js';
 import { appendMembership } from './membershipService.js';
 import { applyAttendanceCalendar } from './attendanceCalendarService.js';
+import { applyBodyMeasurement } from './bodyMeasurements.js';
 
 export const STORAGE_KEY = 'community-fitness:prototype:v1';
 export const RELEASE_BACKUP_KEY = `${STORAGE_KEY}:before-real-members-v1`;
 const ORIGINAL_TABLES = ['member_categories', 'members', 'packages', 'payment_methods', 'memberships', 'attendance', 'app_staff', 'audit_events'];
-export const TABLE_NAMES = [...ORIGINAL_TABLES, 'membership_plans', 'discounts', 'training_purchases'];
+export const TABLE_NAMES = [...ORIGINAL_TABLES, 'membership_plans', 'discounts', 'training_purchases', 'body_measurements'];
 
 function checkShape(data) {
   if (!data || !ORIGINAL_TABLES.every(name => Array.isArray(data[name]))) throw new Error('Saved data could not be read. Your data has not been replaced.');
   const upgraded = upgradeData(data);
+  upgraded.body_measurements ??= [];
   if (!TABLE_NAMES.every(name => Array.isArray(upgraded[name]))) throw new Error('Saved records are incomplete.');
   return upgraded;
 }
@@ -69,6 +71,12 @@ export function createPrototypeRepository(storage = window.localStorage, clock =
       storage.setItem(STORAGE_KEY, JSON.stringify(next));
       data = next; initialError = '';
       return data;
+    },
+    saveBodyMeasurement(input) {
+      return transaction('measurement.save', (next, now) => applyBodyMeasurement(next,input,getActor(),now));
+    },
+    deleteBodyMeasurement(input) {
+      return transaction('measurement.delete', (next, now) => applyBodyMeasurement(next,input,getActor(),now,true));
     },
     saveMember(input, id = null) {
       return transaction(id ? 'member.updated' : 'member.created', (next, now) => {

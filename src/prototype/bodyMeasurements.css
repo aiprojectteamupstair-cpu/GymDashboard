@@ -1,0 +1,52 @@
+.profile-tabs { display:flex; gap:24px; border-bottom:1px solid var(--line); margin:0 0 24px; }
+.profile-tabs a { padding:12px 0; border-bottom:3px solid transparent; text-decoration:none; color:var(--muted); font-size:14px; }
+.profile-tabs a[aria-current="page"] { border-color:var(--accent); color:var(--ink); font-weight:600; }
+.body-measurements { min-width:0; }
+.body-measurements h2 { font-size:18px; letter-spacing:0; }
+.body-measurements h3 { font-size:15px; letter-spacing:0; }
+.body-measurements > section { padding:24px 0; border-bottom:1px solid var(--line); }
+.body-measurements > section:first-child { padding-top:0; }
+.measurement-section-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:18px; flex-wrap:wrap; }
+.measurement-section-heading > span { font-size:13px; color:var(--muted); }
+.measurement-section-heading .field { flex-direction:row; align-items:center; gap:12px; }
+.measurement-section-heading .field label { font-size:13px; }
+.measurement-section-heading input { width:180px; }
+.measurement-section-heading select { padding:8px 12px; }
+.measurement-form fieldset { border:0; padding:0; margin:0; min-width:0; }
+.measurement-inputs,.measurement-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; }
+.measurement-inputs input { font-variant-numeric:tabular-nums; }
+.measurement-inputs input[readonly] { background:var(--soft); }
+.measurement-form-actions { display:flex; align-items:center; justify-content:flex-end; gap:10px; margin-top:16px; }
+.measurement-form-actions > span { margin-right:auto; font-size:13px; color:var(--muted); }
+.measurement-metric { padding:18px; border:1px solid var(--line); border-radius:8px; background:var(--surface); min-width:0; }
+.measurement-metric > span { display:block; font-size:13px; color:var(--muted); }
+.measurement-metric strong { display:block; margin:10px 0; font-size:28px; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.measurement-metric small { font-size:13px; font-weight:400; color:var(--muted); }
+.measurement-metric p { font-size:12px; color:var(--muted); line-height:1.6; }
+.measurement-charts { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); gap:28px; }
+.measurement-trend { min-width:0; }
+.measurement-chart { height:270px; width:100%; min-width:0; }
+.measurement-chart-key { display:flex; flex-wrap:wrap; align-items:center; gap:16px; margin:12px 0; min-height:24px; font-size:12px; color:var(--muted); }
+.measurement-chart-key span { display:flex; align-items:center; gap:6px; }
+.measurement-chart-key i { width:8px; height:8px; border-radius:2px; }
+.measurement-row-actions,.measurement-pagination { display:flex; align-items:center; gap:8px; }
+.measurement-row-actions .button,.measurement-pagination .button { width:40px; height:40px; padding:0; }
+.measurement-pagination { justify-content:flex-end; padding-top:16px; font-size:13px; }
+.measurement-pagination > span { margin-right:auto; color:var(--muted); }
+.measurement-empty { padding:24px 0; color:var(--muted); font-size:14px; }
+.measurement-history .member-table { min-width:650px; }
+.measurement-entry { scroll-margin-top:20px; }
+@media(max-width:1100px) { .measurement-inputs,.measurement-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); } .measurement-charts { grid-template-columns:minmax(0,1fr); } }
+@media(max-width:540px) {
+  .profile-tabs { gap:20px; }
+  .measurement-inputs { gap:14px 12px; }
+  .measurement-inputs label { font-size:12px; }
+  .measurement-metrics { gap:10px; }
+  .measurement-metric { padding:14px 12px; }
+  .measurement-metric strong { font-size:23px; }
+  .measurement-section-heading .field { width:100%; justify-content:space-between; }
+  .measurement-section-heading input { width:166px; }
+  .measurement-form-actions { flex-wrap:wrap; }
+  .measurement-form-actions > span { flex-basis:100%; }
+  .measurement-chart { height:230px; }
+}

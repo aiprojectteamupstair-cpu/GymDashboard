@@ -1,6 +1,28 @@
 # Project context and working rules
 
-Last updated: 2026-10-12. Business: The Community Fitness By Strategy First Gym.
+Last updated: 2026-10-28. Business: The Community Fitness By Strategy First Gym.
+
+## October 28 monthly body measurements
+
+- Member profiles have Overview/Body measurements routes, including
+  `/members/:id/measurements`. Admin and Staff can add/edit/delete one active
+  entry per member/calendar month. Inputs are kg (two decimals); body fat percent
+  is calculated from fat mass/weight, never accepted from the client.
+- Latest cards compare the previous recorded month; charts retain missing-month
+  gaps. Deletion hides the entry but retains its row and before/after audit.
+  Archived members retain history; restore is required before adding/editing.
+- Analytics export now has SIX sheets: the original five plus Body measurements.
+  Only recorded, nondeleted measurements appear, filtered by months touched by
+  the date range and current member category. Existing operational columns stay.
+- Migration `20261028083327_monthly_body_measurements` and `gym-commands` v5 are
+  deployed on approved `snbfdktwrgzhwjqmyhdz`, with RLS, service-only RPC, verified
+  JWT, stale guards and idempotency. No existing member/attendance/Auth data changed.
+  Rollback-only live Admin/Staff tests left zero test members/measurements/audits.
+- 103 unit tests, real isolated local API/SQL tests, lint, both builds, synthetic
+  browser flows and six-sheet XLSX render/formula checks passed. Vercel frontend
+  AND relay redeployment and real authenticated hosted browser acceptance remain
+  pending. See [measurement contract](docs/BODY_MEASUREMENTS.md) and
+  [October 28 checks](docs/DEVELOPMENT.md#october-28-verification).
 
 ## October 12 compact attendance editor and member email
 

@@ -1,0 +1,137 @@
+import assert from 'node:assert/strict';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
+import { resolve } from 'node:path';
+import { createEmptyData } from '../src/prototype/dataLifecycle.js';
+import { applyBodyMeasurement, monthLabel } from '../src/prototype/bodyMeasurements.js';
+import { localDate } from '../src/prototype/domain.js';
+import { unzipSync, strFromU8 } from 'fflate';
+
+const {chromium}=await import(process.env.PLAYWRIGHT_MODULE ? pathToFileURL(process.env.PLAYWRIGHT_MODULE).href : 'playwright');
+await mkdir('.local-db/ui-checks/downloads',{recursive:true});
+const browser=await chromium.launch({channel:'msedge',headless:true,downloadsPath:resolve('.local-db/ui-checks/downloads')});
+const page=await browser.newPage({viewport:{width:1366,height:900}});
+const errors=[];page.on('pageerror',error=>errors.push(error.message));
+const data=createEmptyData(), today=localDate(), month=today.slice(0,7);
+const staff={id:'ui-owner',user_id:'ui-owner',display_name:'Measurement Admin',role_code:'super_admin',enabled:true};
+data.members=[{id:'ui-measurement',full_name:'Monthly Measurement Member',member_code:'C001',category_id:'customer',previous_codes:[]}];
+let saves=0,deletes=0,failNext=false;
+await mkdir('.local-db/ui-checks',{recursive:true});
+await page.route('**/api/local/**',async route=>{
+  const path=new URL(route.request().url()).pathname.split('/').at(-1);
+  let body;
+  if(path==='session') body={user:staff};
+  else if(path==='workspace') body={data,staff};
+  else if(path==='gym-commands') {
+    const request=route.request().postDataJSON();
+    if(failNext) {failNext=false;await route.fulfill({status:400,contentType:'application/json',body:JSON.stringify({error:'Synthetic save failure'})});return;}
+    assert.ok(['measurement.save','measurement.delete'].includes(request.command));
+    const remove=request.command==='measurement.delete';
+    body={result:applyBodyMeasurement(data,request.payload,{id:staff.id,role:staff.role_code},new Date().toISOString(),remove)};
+    if(remove) deletes++;else saves++;
+  } else throw new Error(`Unexpected request: ${path}`);
+  await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});
+});
+const fill=async(weight,fat,muscle)=>{
+  await page.getByLabel('Weight (kg)',{exact:true}).fill(String(weight));
+  await page.getByLabel('Fat mass (kg)',{exact:true}).fill(String(fat));
+  await page.getByLabel('Skeletal muscle (kg)',{exact:true}).fill(String(muscle));
+};
+const history=page.locator('.measurement-history tbody tr');
+try {
+  await page.goto(`${process.env.UI_URL || 'http://127.0.0.1:3000'}/members/ui-measurement/measurements`);
+  await page.getByRole('heading',{name:'Monthly measurement',exact:true}).waitFor();
+  assert.equal(await history.count(),0);
+  await page.getByRole('button',{name:'Save measurement',exact:true}).click();
+  assert.equal(saves,0);
+  await fill(80,20,32);
+  assert.equal(await page.getByLabel('Body fat (%)',{exact:true}).inputValue(),'25.00');
+  failNext=true;
+  await page.getByRole('button',{name:'Save measurement',exact:true}).click();
+  await page.locator('.measurement-form [role=alert]').waitFor();
+  assert.equal(await page.getByLabel('Weight (kg)',{exact:true}).inputValue(),'80');
+  await page.getByRole('button',{name:'Save measurement',exact:true}).click();
+  await page.getByRole('button',{name:'Save changes',exact:true}).waitFor();
+  assert.equal(saves,1);assert.equal(await history.count(),1);
+  assert.equal(await page.locator('.error-banner').count(),0);
+  assert.equal(data.body_measurements[0].body_fat_percent,25);
+  await fill(80,81,32);
+  await page.getByRole('button',{name:'Save changes',exact:true}).click();
+  await page.locator('.measurement-form').getByText('Fat mass and skeletal muscle cannot exceed weight.',{exact:true}).waitFor();
+  assert.equal(saves,1);
+  await fill(78,18,32);
+  await page.getByRole('button',{name:'Save changes',exact:true}).click();
+  await page.locator('.measurement-metric').first().getByText('78.00',{exact:false}).waitFor();
+  assert.equal(saves,2);
+  const old=new Date(`${month}-01T00:00:00Z`);old.setUTCMonth(old.getUTCMonth()-2);
+  const oldMonth=old.toISOString().slice(0,7), oldLabel=monthLabel(`${oldMonth}-01`);
+  await page.getByLabel('Measurement month',{exact:true}).fill(oldMonth);
+  await fill(82,22,30);
+  await page.getByRole('button',{name:'Save measurement',exact:true}).click();
+  await page.getByRole('button',{name:`Edit measurement ${oldLabel}`,exact:true}).waitFor();
+  assert.equal(await history.count(),2);
+  await page.locator('.measurement-metric').first().getByText(`-4.00 kg since ${oldLabel}`,{exact:true}).waitFor();
+  assert.equal(await page.locator('.measurement-chart .recharts-line').count(),4);
+  assert.equal(await page.locator('.measurement-chart .recharts-line-dot').count(),8);
+  await page.getByRole('link',{name:'Overview',exact:true}).click();
+  await page.getByRole('heading',{name:'Member information',exact:true}).waitFor();
+  await page.goBack();
+  await page.getByRole('heading',{name:'Monthly measurement',exact:true}).waitFor();
+  await page.reload();
+  await page.getByRole('heading',{name:'Monthly measurement',exact:true}).waitFor();
+  assert.equal(await history.count(),2);
+  for(const viewport of [{width:1366,height:900},{width:390,height:844},{width:320,height:568}]) {
+    await page.setViewportSize(viewport);
+    await page.getByRole('heading',{name:'Monthly measurement',exact:true}).scrollIntoViewIfNeeded();
+    await page.evaluate(()=>document.activeElement?.blur());
+    const overflow=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,elements:[...document.querySelectorAll('body *')].filter(node=>node.getBoundingClientRect().right>innerWidth && !node.closest('.table-scroll')).slice(0,15).map(node=>({tag:node.tagName,class:node.className,right:node.getBoundingClientRect().right}))}));
+    assert.ok(overflow.scroll<=overflow.width,JSON.stringify({viewport,overflow}));
+    const charts=await page.locator('.measurement-chart').evaluateAll(nodes=>nodes.map(node=>({width:node.clientWidth,height:node.clientHeight,points:node.querySelectorAll('.recharts-line-dot').length})));
+    assert.ok(charts.every(chart=>chart.width>200 && chart.height>150 && chart.points>0),JSON.stringify(charts));
+    await page.screenshot({path:`.local-db/ui-checks/measurements-${viewport.width}.png`,fullPage:true});
+  }
+  await page.getByRole('button',{name:'Toggle theme'}).click();
+  await page.screenshot({path:'.local-db/ui-checks/measurements-mobile-dark.png',fullPage:true});
+  staff.role_code='admin';staff.display_name='Measurement Staff';
+  await page.reload();
+  await page.getByRole('button',{name:`Edit measurement ${oldLabel}`,exact:true}).click();
+  assert.equal(await page.getByLabel('Measurement month',{exact:true}).inputValue(),oldMonth);
+  await fill(81,21,31);
+  await page.getByRole('button',{name:'Save changes',exact:true}).click();
+  await page.locator('.measurement-metric').first().getByText(`-3.00 kg since ${oldLabel}`,{exact:true}).waitFor();
+  await page.getByRole('button',{name:`Delete measurement ${oldLabel}`,exact:true}).click();
+  const dialog=page.getByRole('dialog');
+  await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
+  assert.equal(deletes,0);
+  await page.getByRole('button',{name:`Delete measurement ${oldLabel}`,exact:true}).click();
+  await dialog.getByRole('button',{name:'Delete measurement',exact:true}).click();
+  await dialog.waitFor({state:'hidden'});
+  await page.getByRole('button',{name:`Delete measurement ${oldLabel}`,exact:true}).waitFor({state:'hidden'});
+  assert.equal(deletes,1);assert.equal(await history.count(),1);
+  assert.ok(data.body_measurements.find(row=>row.measurement_month===`${oldMonth}-01`).deleted_at);
+  await page.getByRole('link',{name:'Analytics',exact:true}).click();
+  await page.getByLabel('Analysis start date',{exact:true}).fill(`01/${month.slice(5)}/${month.slice(0,4)}`);
+  await page.getByLabel('Analysis end date',{exact:true}).fill(today.split('-').reverse().join('/'));
+  await page.evaluate(()=>{
+    const original=URL.createObjectURL;
+    URL.createObjectURL=blob=>{window.measurementExport=blob;return original(blob);};
+  });
+  const downloadPromise=page.waitForEvent('download');
+  await page.getByRole('button',{name:/Export Excel/}).click();
+  const download=await downloadPromise;
+  const bytes=Uint8Array.from(await page.evaluate(async()=>Array.from(new Uint8Array(await window.measurementExport.arrayBuffer()))));
+  await writeFile('.local-db/ui-checks/measurements-browser-export.xlsx',bytes);
+  const zip=unzipSync(bytes), sheet=strFromU8(zip['xl/worksheets/sheet6.xml']);
+  assert.match(sheet,/Monthly Measurement Member/);
+  assert.equal((sheet.match(/<row /g)||[]).length,2);
+  assert.match(sheet,/<f>ROUND\(F2\/E2\*100,2\)<\/f>/);
+  const downloadFailure=await download.failure();
+  if(downloadFailure) console.log(`Native browser download unavailable: ${downloadFailure}. Browser-generated workbook bytes were verified separately.`);
+  else {
+    await download.saveAs('.local-db/ui-checks/measurements-native-download.xlsx');
+    assert.deepEqual(new Uint8Array(await readFile('.local-db/ui-checks/measurements-native-download.xlsx')),bytes);
+    console.log('Native Excel download bytes match the verified browser-generated workbook.');
+  }
+  assert.deepEqual(errors,[]);
+  console.log('Measurement browser checks passed: Admin/Staff CRUD, validation/retry, routes, charts, responsive layouts and Excel generation. Synthetic data only.');
+} finally {await browser.close();}

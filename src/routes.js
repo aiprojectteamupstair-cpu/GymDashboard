@@ -7,19 +7,19 @@ export const PAGE_PATHS = Object.freeze({
   accounts: '/staff-accounts',
 });
 
-export function memberPath(id) {
-  return `${PAGE_PATHS.members}/${encodeURIComponent(id)}`;
+export function memberPath(id, tab = 'overview') {
+  return `${PAGE_PATHS.members}/${encodeURIComponent(id)}${tab==='measurements'?'/measurements':''}`;
 }
 
 export function resolveRoute(pathname) {
   const path = pathname.replace(/\/+$/, '') || '/';
   const page = Object.keys(PAGE_PATHS).find(key => PAGE_PATHS[key] === path);
   if (page) return { page, memberId: null, path };
-  const match = /^\/members\/([^/]+)$/.exec(path);
+  const match = /^\/members\/([^/]+)(\/measurements)?$/.exec(path);
   if (match) {
     try {
       const memberId = decodeURIComponent(match[1]);
-      if (/^[A-Za-z0-9_-]+$/.test(memberId)) return { page: 'members', memberId, path: memberPath(memberId) };
+      if (/^[A-Za-z0-9_-]+$/.test(memberId)) return { page: 'members', memberId, path: memberPath(memberId,match[2]?'measurements':'overview'), ...(match[2]?{profileTab:'measurements'}:{}) };
     } catch { /* Malformed URL encoding is a not-found route. */ }
   }
   return { page: 'not-found', memberId: null, path: pathname };

@@ -1,7 +1,7 @@
 import { allowedOrigins as configuredOrigins } from '../_shared/origins.js';
 
 export function createCommandHandler({ userClient, adminClient, allowedOrigins = configuredOrigins() }) {
-  const commands = new Set(['member.save', 'member.archive', 'membership.add', 'attendance.checkin', 'attendance.time', 'attendance.calendar', 'catalogue.save', 'catalogue.status']);
+  const commands = new Set(['member.save', 'member.archive', 'membership.add', 'attendance.checkin', 'attendance.time', 'attendance.calendar', 'catalogue.save', 'catalogue.status', 'measurement.save', 'measurement.delete']);
   return async request => {
     const origin = request.headers.get('origin');
     const headers = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', Vary: 'Origin',
@@ -25,8 +25,9 @@ export function createCommandHandler({ userClient, adminClient, allowedOrigins =
       try { body = JSON.parse(raw); } catch { return reply(400, { error: 'Invalid request.' }); }
       if (!commands.has(body?.command) || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body?.request_id || '') || !body.payload || Array.isArray(body.payload) || typeof body.payload !== 'object') return reply(400, { error: 'Invalid command.' });
       const calendar = body.command === 'attendance.calendar';
-      if (calendar && !['super_admin','admin'].includes(profile.data.role_code)) return reply(403, { error: 'An authorized Admin or Staff account is required.' });
-      const result = await adminClient().rpc(calendar ? 'gym_attendance_calendar' : 'gym_command', { actor_auth_id: data.user.id, request_id: body.request_id, ...(!calendar ? { command: body.command } : {}), payload: body.payload });
+      const measurement = body.command.startsWith('measurement.');
+      if ((calendar || measurement) && !['super_admin','admin'].includes(profile.data.role_code)) return reply(403, { error: 'An authorized Admin or Staff account is required.' });
+      const result = await adminClient().rpc(calendar ? 'gym_attendance_calendar' : measurement ? 'gym_body_measurement' : 'gym_command', { actor_auth_id: data.user.id, request_id: body.request_id, ...(!calendar ? { command: body.command } : {}), payload: body.payload });
       if (result.error) return reply(result.error.code === '42501' ? 403 : 409, { error: result.error.message.replaceAll('Super Admin', 'Admin') });
       return reply(200, { result: result.data });
     } catch { return reply(503, { error: 'Save could not be confirmed. Keep this form open and retry the same values; do not create another record.' }); }

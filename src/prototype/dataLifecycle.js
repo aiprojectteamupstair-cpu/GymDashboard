@@ -8,7 +8,7 @@ export function createEmptyData() {
     schema_version: 2, data_release: DATA_RELEASE,
     member_categories: structuredClone(CATEGORIES), packages: structuredClone(PACKAGES),
     membership_plans: structuredClone(PLANS), discounts: structuredClone(DISCOUNTS),
-    members: [], memberships: [], training_purchases: [], attendance: [],
+    members: [], memberships: [], training_purchases: [], attendance: [], body_measurements: [],
     payment_methods: [], app_staff: [], audit_events: [],
   };
 }

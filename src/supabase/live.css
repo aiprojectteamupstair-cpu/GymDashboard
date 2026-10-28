@@ -8,3 +8,7 @@
   .live-shell .main-shell { margin-left: 0; }
 }
 .live-shell a.nav-item, .live-shell a.brand { text-decoration: none; }
+@media (max-width: 380px) {
+  .live-shell .topbar { flex-wrap:wrap; height:auto; padding-top:12px; padding-bottom:12px; }
+  .live-shell .topbar-actions { margin-left:auto; }
+}
