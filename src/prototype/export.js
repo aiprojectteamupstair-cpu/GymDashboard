@@ -1,6 +1,6 @@
 import { strToU8, zipSync } from 'fflate';
 import { ageOn, categoryLabel, endDate, formatDate, localDate, membershipStatus, shiftDays, validDate } from './domain.js';
-import { bodyFatPercent } from './bodyMeasurements.js';
+import { bodyFatPercent, kgToLb } from './bodyMeasurements.js';
 
 const xml = value => Array.from(String(value ?? '')).filter(char => char.codePointAt(0) >= 32 || ['\t', '\n', '\r'].includes(char)).join('').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;');
 const column = index => { let result = ''; for (let n = index + 1; n > 0; n = Math.floor((n - 1) / 26)) result = String.fromCharCode(65 + (n - 1) % 26) + result; return result; };
@@ -53,7 +53,7 @@ export function exportTables(data, { start = '', end = '', category = 'all' } = 
       ['Dates and status', 'End dates include admin overrides. Status and age are as of export date. Attendance columns cover every day of the selected period.'],
       ['Attendance calendar', 'All member categories use calendar months, from the 1st to the last day. Attendance sheet lists each actual visit once.'],
       ['Voucher No.', 'Memberships lists each saved membership voucher. A voucher may cover multiple people and is not a unique member ID. Blank means not recorded.'],
-      ['Body measurements', 'Recorded months only, including archived members. Includes each month touched by the selected date range and uses current member category. Deleted entries and unmeasured members are excluded. Weight, fat mass and skeletal muscle are kg; body fat % = fat mass / weight * 100.'],
+      ['Body measurements', 'Recorded months only, including archived members. Includes each month touched by the selected date range and uses current member category. Deleted entries and unmeasured members are excluded. Weight, fat mass and skeletal muscle are lb; body fat % = fat mass / weight * 100. Converted values retain precision and display two decimals.'],
     ] },
     { name: 'Members', headers: ['Member ID', 'Name', 'Category', 'Phone', 'Age', 'Student ID', 'Profile status', 'Remark'],
       rows: members.map(m => [m.member_code, m.full_name, categoryLabel(data, m), m.contact_phone, ageOn(m.date_of_birth, today) ?? '', m.student_id, m.archived_at ? 'Archived' : 'Current', m.remark]) },
@@ -63,8 +63,8 @@ export function exportTables(data, { start = '', end = '', category = 'all' } = 
       rows: members.map(m => [m.member_code, m.full_name, categoryLabel(data,m), ...columns.map(day=>present.has(`${m.id}/${day}`) ? 1 : 0)]) },
     { name: 'Training', headers: ['Member ID', 'Name', 'PT sessions', 'Start date', 'End date', 'Status'],
       rows: training.map(t => [memberMap.get(t.member_id)?.member_code, memberMap.get(t.member_id)?.full_name, t.sessions, date(t.start_date), date(t.end_date), membershipStatus({ start_date: t.start_date, calculated_end_date: t.end_date }, today)]) },
-    { name: 'Body measurements', headers: ['Member ID','Name','Category','Month','Weight (kg)','Fat mass (kg)','Skeletal muscle (kg)','Body fat (%)'],
-      rows:measurements.map((row,index)=>{const member=measurementMembers.get(row.member_id);return [member.member_code,member.full_name,categoryLabel(data,member),`${row.measurement_month.slice(5,7)}/${row.measurement_month.slice(0,4)}`,Number(row.weight_kg),Number(row.fat_mass_kg),Number(row.skeletal_muscle_kg),{formula:`ROUND(F${index+2}/E${index+2}*100,2)`,value:bodyFatPercent(row.fat_mass_kg,row.weight_kg)}];}) },
+    { name: 'Body measurements', headers: ['Member ID','Name','Category','Month','Weight (lb)','Fat mass (lb)','Skeletal muscle (lb)','Body fat (%)'],
+      rows:measurements.map((row,index)=>{const member=measurementMembers.get(row.member_id);return [member.member_code,member.full_name,categoryLabel(data,member),`${row.measurement_month.slice(5,7)}/${row.measurement_month.slice(0,4)}`,kgToLb(row.weight_kg),kgToLb(row.fat_mass_kg),kgToLb(row.skeletal_muscle_kg),{formula:`ROUND(F${index+2}/E${index+2}*100,2)`,value:bodyFatPercent(row.fat_mass_kg,row.weight_kg)}];}) },
   ];
 }
 

@@ -1,24 +1,35 @@
 import { addMonths, localDate, validDate } from './domain.js';
 
 export const BODY_METRICS = [
-  { key:'weight_kg', label:'Weight', unit:'kg', color:'#c8102e' },
-  { key:'fat_mass_kg', label:'Fat mass', unit:'kg', color:'#b67b16' },
-  { key:'skeletal_muscle_kg', label:'Skeletal muscle', unit:'kg', color:'#258575' },
+  { key:'weight_kg', inputKey:'weight_lb', label:'Weight', unit:'lb', color:'#c8102e' },
+  { key:'fat_mass_kg', inputKey:'fat_mass_lb', label:'Fat mass', unit:'lb', color:'#b67b16' },
+  { key:'skeletal_muscle_kg', inputKey:'skeletal_muscle_lb', label:'Skeletal muscle', unit:'lb', color:'#258575' },
   { key:'body_fat_percent', label:'Body fat', unit:'%', color:'#6574bb' },
 ];
+
+// Exact international pound; storage stays in kg for existing records/clients.
+export const KG_PER_LB = 0.45359237;
+export const kgToLb = value => Number(value) / KG_PER_LB;
+export const lbToKg = value => Number((Number(value) * KG_PER_LB).toFixed(10));
+export const measurementInputs = row => Object.fromEntries(BODY_METRICS.slice(0,3).map(({key,inputKey})=>[inputKey,row ? kgToLb(row[key]).toFixed(2) : '']));
+export const measurementValue = (row, metric) => metric.unit==='lb' ? kgToLb(row[metric.key]) : Number(row[metric.key]);
 
 export const monthLabel = month => new Intl.DateTimeFormat('en-GB', { month:'short', year:'numeric', timeZone:'UTC' }).format(new Date(`${month.slice(0,7)}-01T00:00:00Z`));
 export const bodyFatPercent = (fat, weight) => Number.isFinite(Number(fat)) && Number(weight)>0 ? Math.round((Number(fat)*100/Number(weight)+Number.EPSILON)*100)/100 : null;
 
-export function validateMeasurement(input, today = localDate()) {
+export function validateMeasurement(input, today = localDate(), existing = null) {
   if (!/^\d{4}-\d{2}-01$/.test(input.measurement_month || '') || !validDate(input.measurement_month) || input.measurement_month.slice(0,7)>today.slice(0,7)) throw new Error('Choose a valid month, no later than this month.');
+  const unit=input.measurement_unit ?? 'kg';
+  if (!['kg','lb'].includes(unit)) throw new Error('Choose a supported measurement unit.');
+  if (BODY_METRICS.slice(0,3).some(metric=>input[unit==='lb'?metric.key:metric.inputKey]!==undefined)) throw new Error('Use one measurement unit per entry.');
   const result = { measurement_month:input.measurement_month };
-  for (const {key,label} of BODY_METRICS.slice(0,3)) {
-    const raw = input[key];
-    if (!['string','number'].includes(typeof raw) || !/^\d+(\.\d{1,2})?$/.test(String(raw).trim())) throw new Error(`Enter ${label.toLowerCase()} in kg with up to two decimal places.`);
+  for (const {key,inputKey,label} of BODY_METRICS.slice(0,3)) {
+    const raw = input[unit==='lb'?inputKey:key];
+    if (!['string','number'].includes(typeof raw) || !/^\d+(\.\d{1,2})?$/.test(String(raw).trim())) throw new Error(`Enter ${label.toLowerCase()} in ${unit} with up to two decimal places.`);
     const value = Number(raw);
-    if (!Number.isFinite(value) || value<0 || value>1000 || (key==='weight_kg' && value===0)) throw new Error(`${label} is outside the allowed range.`);
-    result[key]=value;
+    if (!Number.isFinite(value) || value<0 || value>(unit==='lb'?2204.62:1000) || (key==='weight_kg' && value===0)) throw new Error(`${label} is outside the allowed range.`);
+    // An untouched rounded lb input must not alter a more precise legacy value.
+    result[key]=unit==='lb' ? existing && Number(kgToLb(existing[key]).toFixed(2))===value ? Number(existing[key]) : lbToKg(value) : value;
   }
   if (result.fat_mass_kg>result.weight_kg || result.skeletal_muscle_kg>result.weight_kg) throw new Error('Fat mass and skeletal muscle cannot exceed weight.');
   result.body_fat_percent=bodyFatPercent(result.fat_mass_kg,result.weight_kg);
@@ -39,7 +50,7 @@ export function applyBodyMeasurement(data, input, actor, now, remove = false) {
     row={...existing,deleted_at:now,updated_at:now,updated_by:actor.id};
   } else {
     if (member.archived_at) throw new Error('Restore the member before adding or editing measurements.');
-    const values=validateMeasurement(input,localDate(now));
+    const values=validateMeasurement(input,localDate(now),existing);
     if (existing && existing.measurement_month!==values.measurement_month) throw new Error('An existing measurement must keep its original month.');
     if (data.body_measurements.some(item=>item.member_id===member.id && item.measurement_month===values.measurement_month && !item.deleted_at && item.id!==existing?.id)) throw new Error('This month already has measurements. Refresh and edit that entry.');
     row={...(existing || {id:crypto.randomUUID(),member_id:member.id,created_at:now,created_by:actor.id,deleted_at:null}),...values,updated_at:now,updated_by:actor.id};
@@ -64,7 +75,7 @@ export function measurementSeries(rows, months = 12) {
   const result=[];
   for(let month=first;month<=last;month=addMonths(month,1)) {
     const row=byMonth.get(month);
-    result.push({month:monthLabel(month),...Object.fromEntries(BODY_METRICS.map(({key})=>[key,row ? Number(row[key]) : null]))});
+    result.push({date:month,month:monthLabel(month),...Object.fromEntries(BODY_METRICS.map(({key})=>[key,row ? Number(row[key]) : null]))});
   }
   return result;
 }

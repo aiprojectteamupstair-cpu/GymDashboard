@@ -4,6 +4,32 @@ Current handover workflow, October 5, 2026. This supersedes older backend setup 
 
 ## October 28 verification
 
+### Pounds and refined dashboard follow-up
+
+The current UI and Excel use lb, superseding kg display/input details in the
+initial October 28 implementation. See the updated
+[measurement contract](BODY_MEASUREMENTS.md#unit-conversion-and-compatibility).
+
+- 104 unit tests, lint and both builds passed. Isolated local HTTP/PostgreSQL
+  and cloud-style SQL tests passed exact lb persistence, original kg preservation
+  through migration/rounded editing, old-client compatibility, mixed-unit/input
+  validation, concurrency, audit and authorization checks.
+- Synthetic browser tests passed the new metric selection, previous/first
+  comparison, mini trends, missing-month gaps, lb CRUD/retry and legacy edit
+  preservation. Desktop 1366x900, mobile 390x844 and 320x568 screenshots and dark
+  mode were inspected; no page-level horizontal overflow. No real local data used.
+- XLSX contents/formulas and six rendered sheets passed with lb values; cells
+  retain conversion precision beneath two-decimal formatting. Native headless
+  downloads still intermittently cancel; generated browser bytes were checked.
+- Migration `20261028104605_measurement_pounds_precision` deployed on the approved
+  project. Live rollback tests exercised both roles with old kg and new lb
+  payloads and left zero probe members, measurement rows or measurement audits.
+  RLS/service-only RPC grants remain unchanged. No real measurements or accounts
+  were modified. Existing `gym-commands` v5 was not redeployed.
+- Security advisor still reports only the existing password-protection warning
+  linked below. Vercel frontend/relay redeployment and real authenticated hosted
+  acceptance remain pending.
+
 The new monthly body-measurement feature is described in
 [BODY_MEASUREMENTS.md](BODY_MEASUREMENTS.md). These checks cover the October 28
 changes; older sections below remain historical verification records.

@@ -33,9 +33,9 @@ await page.route('**/api/local/**',async route=>{
   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});
 });
 const fill=async(weight,fat,muscle)=>{
-  await page.getByLabel('Weight (kg)',{exact:true}).fill(String(weight));
-  await page.getByLabel('Fat mass (kg)',{exact:true}).fill(String(fat));
-  await page.getByLabel('Skeletal muscle (kg)',{exact:true}).fill(String(muscle));
+  await page.getByLabel('Weight (lb)',{exact:true}).fill(String(weight));
+  await page.getByLabel('Fat mass (lb)',{exact:true}).fill(String(fat));
+  await page.getByLabel('Skeletal muscle (lb)',{exact:true}).fill(String(muscle));
 };
 const history=page.locator('.measurement-history tbody tr');
 try {
@@ -44,49 +44,61 @@ try {
   assert.equal(await history.count(),0);
   await page.getByRole('button',{name:'Save measurement',exact:true}).click();
   assert.equal(saves,0);
-  await fill(80,20,32);
+  await fill(180,45,70);
   assert.equal(await page.getByLabel('Body fat (%)',{exact:true}).inputValue(),'25.00');
   failNext=true;
   await page.getByRole('button',{name:'Save measurement',exact:true}).click();
   await page.locator('.measurement-form [role=alert]').waitFor();
-  assert.equal(await page.getByLabel('Weight (kg)',{exact:true}).inputValue(),'80');
+  assert.equal(await page.getByLabel('Weight (lb)',{exact:true}).inputValue(),'180');
   await page.getByRole('button',{name:'Save measurement',exact:true}).click();
   await page.getByRole('button',{name:'Save changes',exact:true}).waitFor();
   assert.equal(saves,1);assert.equal(await history.count(),1);
   assert.equal(await page.locator('.error-banner').count(),0);
   assert.equal(data.body_measurements[0].body_fat_percent,25);
-  await fill(80,81,32);
+  await fill(180,181,70);
   await page.getByRole('button',{name:'Save changes',exact:true}).click();
   await page.locator('.measurement-form').getByText('Fat mass and skeletal muscle cannot exceed weight.',{exact:true}).waitFor();
   assert.equal(saves,1);
-  await fill(78,18,32);
+  await fill(178,43,70);
   await page.getByRole('button',{name:'Save changes',exact:true}).click();
-  await page.locator('.measurement-metric').first().getByText('78.00',{exact:false}).waitFor();
+  await page.locator('.measurement-metric').first().getByText('178.00',{exact:false}).waitFor();
   assert.equal(saves,2);
   const old=new Date(`${month}-01T00:00:00Z`);old.setUTCMonth(old.getUTCMonth()-2);
   const oldMonth=old.toISOString().slice(0,7), oldLabel=monthLabel(`${oldMonth}-01`);
   await page.getByLabel('Measurement month',{exact:true}).fill(oldMonth);
-  await fill(82,22,30);
+  await fill(182,47,68);
   await page.getByRole('button',{name:'Save measurement',exact:true}).click();
   await page.getByRole('button',{name:`Edit measurement ${oldLabel}`,exact:true}).waitFor();
   assert.equal(await history.count(),2);
-  await page.locator('.measurement-metric').first().getByText(`-4.00 kg since ${oldLabel}`,{exact:true}).waitFor();
-  assert.equal(await page.locator('.measurement-chart .recharts-line').count(),4);
-  assert.equal(await page.locator('.measurement-chart .recharts-line-dot').count(),8);
+  await page.locator('.measurement-metric').first().getByText('-4.00 lb',{exact:true}).waitFor();
+  assert.equal(await page.locator('.measurement-chart .recharts-area').count(),1);
+  assert.equal(await page.locator('.measurement-chart .recharts-area-dot').count(),2);
+  for(const offset of [3,4,5]) {
+    const date=new Date(`${month}-01T00:00:00Z`);date.setUTCMonth(date.getUTCMonth()-offset);
+    applyBodyMeasurement(data,{member_id:'ui-measurement',measurement_month:date.toISOString().slice(0,10),measurement_unit:'lb',weight_lb:String(179+offset*2),fat_mass_lb:String(42+offset),skeletal_muscle_lb:'68'}, {id:staff.id,role:staff.role_code},new Date().toISOString());
+  }
   await page.getByRole('link',{name:'Overview',exact:true}).click();
   await page.getByRole('heading',{name:'Member information',exact:true}).waitFor();
   await page.goBack();
   await page.getByRole('heading',{name:'Monthly measurement',exact:true}).waitFor();
   await page.reload();
   await page.getByRole('heading',{name:'Monthly measurement',exact:true}).waitFor();
-  assert.equal(await history.count(),2);
+  assert.equal(await history.count(),5);
+  await page.getByRole('button',{name:'View body fat trend',exact:true}).click();
+  await page.getByRole('heading',{name:'Body fat trend',exact:true}).waitFor();
+  await page.getByLabel('Compare measurements').selectOption('first');
+  await page.locator('.measurement-metric').first().getByText('-11.00 lb',{exact:true}).waitFor();
+  await page.getByLabel('Compare measurements').selectOption('previous');
+  await page.getByRole('button',{name:'View weight trend',exact:true}).click();
+  assert.equal(await page.getByLabel('Weight (lb)',{exact:true}).inputValue(),'178.00');
+  assert.equal(await page.locator('.body-measurements').getByText(/\bkg\b/).count(),0);
   for(const viewport of [{width:1366,height:900},{width:390,height:844},{width:320,height:568}]) {
     await page.setViewportSize(viewport);
     await page.getByRole('heading',{name:'Monthly measurement',exact:true}).scrollIntoViewIfNeeded();
-    await page.evaluate(()=>document.activeElement?.blur());
+    await page.evaluate(()=>{document.activeElement?.blur();window.scrollTo(0,0);});
     const overflow=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,elements:[...document.querySelectorAll('body *')].filter(node=>node.getBoundingClientRect().right>innerWidth && !node.closest('.table-scroll')).slice(0,15).map(node=>({tag:node.tagName,class:node.className,right:node.getBoundingClientRect().right}))}));
     assert.ok(overflow.scroll<=overflow.width,JSON.stringify({viewport,overflow}));
-    const charts=await page.locator('.measurement-chart').evaluateAll(nodes=>nodes.map(node=>({width:node.clientWidth,height:node.clientHeight,points:node.querySelectorAll('.recharts-line-dot').length})));
+    const charts=await page.locator('.measurement-chart').evaluateAll(nodes=>nodes.map(node=>({width:node.clientWidth,height:node.clientHeight,points:node.querySelectorAll('.recharts-area-dot').length})));
     assert.ok(charts.every(chart=>chart.width>200 && chart.height>150 && chart.points>0),JSON.stringify(charts));
     await page.screenshot({path:`.local-db/ui-checks/measurements-${viewport.width}.png`,fullPage:true});
   }
@@ -96,9 +108,9 @@ try {
   await page.reload();
   await page.getByRole('button',{name:`Edit measurement ${oldLabel}`,exact:true}).click();
   assert.equal(await page.getByLabel('Measurement month',{exact:true}).inputValue(),oldMonth);
-  await fill(81,21,31);
+  await fill(181,46,69);
   await page.getByRole('button',{name:'Save changes',exact:true}).click();
-  await page.locator('.measurement-metric').first().getByText(`-3.00 kg since ${oldLabel}`,{exact:true}).waitFor();
+  await page.locator('.measurement-metric').first().getByText('-3.00 lb',{exact:true}).waitFor();
   await page.getByRole('button',{name:`Delete measurement ${oldLabel}`,exact:true}).click();
   const dialog=page.getByRole('dialog');
   await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
@@ -107,7 +119,7 @@ try {
   await dialog.getByRole('button',{name:'Delete measurement',exact:true}).click();
   await dialog.waitFor({state:'hidden'});
   await page.getByRole('button',{name:`Delete measurement ${oldLabel}`,exact:true}).waitFor({state:'hidden'});
-  assert.equal(deletes,1);assert.equal(await history.count(),1);
+  assert.equal(deletes,1);assert.equal(await history.count(),4);
   assert.ok(data.body_measurements.find(row=>row.measurement_month===`${oldMonth}-01`).deleted_at);
   await page.getByRole('link',{name:'Analytics',exact:true}).click();
   await page.getByLabel('Analysis start date',{exact:true}).fill(`01/${month.slice(5)}/${month.slice(0,4)}`);
@@ -132,6 +144,14 @@ try {
     assert.deepEqual(new Uint8Array(await readFile('.local-db/ui-checks/measurements-native-download.xlsx')),bytes);
     console.log('Native Excel download bytes match the verified browser-generated workbook.');
   }
+  data.members.push({id:'legacy-body',full_name:'Legacy Measurement Member',member_code:'C002',category_id:'customer',previous_codes:[]});
+  applyBodyMeasurement(data,{member_id:'legacy-body',measurement_month:`${month}-01`,weight_kg:80,fat_mass_kg:20,skeletal_muscle_kg:32},{id:staff.id,role:staff.role_code},new Date().toISOString());
+  await page.goto(`${process.env.UI_URL || 'http://127.0.0.1:3000'}/members/legacy-body/measurements`);
+  await page.getByRole('button',{name:'Save changes',exact:true}).waitFor();
+  assert.equal(await page.getByLabel('Weight (lb)',{exact:true}).inputValue(),'176.37');
+  await page.getByRole('button',{name:'Save changes',exact:true}).click();
+  await page.getByText('Saved and workspace refreshed.',{exact:true}).waitFor();
+  assert.equal(data.body_measurements.find(row=>row.member_id==='legacy-body').weight_kg,80);
   assert.deepEqual(errors,[]);
   console.log('Measurement browser checks passed: Admin/Staff CRUD, validation/retry, routes, charts, responsive layouts and Excel generation. Synthetic data only.');
 } finally {await browser.close();}

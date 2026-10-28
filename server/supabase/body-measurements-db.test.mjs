@@ -44,6 +44,19 @@ test('measurement SQL enforces RLS, service access, monthly uniqueness, stale ed
     const results=await Promise.all([invoke(input,staff,request),invoke(input,staff,request)]);
     assert.deepEqual(results[0].rows,results[1].rows);
     let row=(await all())[0];assert.equal(row.body_fat_percent,25);
+    const oldRow=structuredClone(row);
+    const precisionSql=await readFile(new URL('../../supabase/migrations/20261028104605_measurement_pounds_precision.sql',import.meta.url),'utf8');
+    await pool.query(precisionSql.replace(/\b(anon|authenticated|service_role)\b/g,name=>roles[name]));
+    assert.deepEqual((await all())[0],oldRow);
+    const pounds={member_id:member,measurement_month:row.measurement_month,measurement_unit:'lb',weight_lb:'176.37',fat_mass_lb:'44.09',skeletal_muscle_lb:'70.55',id:row.id,expected_updated_at:row.updated_at};
+    await invoke(pounds);
+    row=(await all())[0];assert.equal(row.weight_kg,80);assert.equal(row.fat_mass_kg,20);assert.equal(row.skeletal_muscle_kg,32);
+    const poundInput={...pounds,measurement_month:'2026-05-01',id:null,expected_updated_at:null,weight_lb:'180.01',fat_mass_lb:'36',skeletal_muscle_lb:'70'};
+    await invoke(poundInput);
+    const poundRow=(await all()).find(item=>item.measurement_month==='2026-05-01');
+    assert.equal(poundRow.weight_kg,81.6511625237);assert.equal(poundRow.fat_mass_kg,16.32932532);
+    for(const patch of [{weight_lb:0},{weight_lb:2204.63},{fat_mass_lb:181},{skeletal_muscle_lb:-1},{measurement_unit:'stone'},{weight_lb:'180.001'},{weight_kg:80}]) await assert.rejects(invoke({...poundInput,measurement_month:'2026-06-01',...patch}));
+    await invoke({member_id:member,id:poundRow.id,expected_updated_at:poundRow.updated_at},staff,crypto.randomUUID(),'measurement.delete');
     await assert.rejects(invoke(input),/already/);
     await assert.rejects(invoke({...input,fat_mass_kg:19},staff,request),/different operation/);
     for(const identity of [owner,staff]) {
@@ -65,8 +78,8 @@ test('measurement SQL enforces RLS, service access, monthly uniqueness, stale ed
     const deleted=(await all())[0];assert.ok(deleted.deleted_at);assert.equal(deleted.body_fat_percent,20);
     await assert.rejects(invoke(edit),/changed/);
     await invoke(input);
-    assert.equal((await all()).length,2);
-    const audit=(await pool.query("SELECT changes FROM public.audit_events WHERE action='measurement.delete'")).rows[0];
+    assert.equal((await all()).length,3);
+    const audit=(await pool.query("SELECT changes FROM public.audit_events WHERE action='measurement.delete' AND entity_id=$1",[row.id])).rows[0];
     assert.equal(audit.changes.before.body_fat_percent,20);assert.ok(audit.changes.after.deleted_at);
     const simultaneous=await Promise.allSettled([invoke({...input,measurement_month:'2026-03-01'}),invoke({...input,measurement_month:'2026-03-01'},owner)]);
     assert.equal(simultaneous.filter(result=>result.status==='fulfilled').length,1);

@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { createEmptyData } from '../src/prototype/dataLifecycle.js';
 import { createPrototypeWorkbook } from '../src/prototype/export.js';
+import { kgToLb } from '../src/prototype/bodyMeasurements.js';
 
 const runtimeRequire=createRequire(`${process.env.BUNDLED_NODE_MODULES}/../package.json`);
 const {FileBlob,SpreadsheetFile}=await import(pathToFileURL(runtimeRequire.resolve('@oai/artifact-tool')).href);
@@ -22,7 +23,12 @@ const errors=await workbook.inspect({kind:'match',searchTerm:'#REF!|#DIV/0!|#VAL
 console.log(errors.ndjson);
 const attendance=workbook.worksheets.getItem('Attendance').getRange('D3:M8').values;
 assert.equal(attendance.flat().reduce((a,b)=>a+Number(b||0),0),data.attendance.length);
-assert.deepEqual(workbook.worksheets.getItem('Body measurements').getRange('E2:H3').values,[[80,20,32,25],[62.5,12.5,25,20]]);
+const bodyValues=workbook.worksheets.getItem('Body measurements').getRange('E2:H3').values;
+for(const [index,record] of data.body_measurements.entries()) {
+  assert.ok(Math.abs(bodyValues[index][0]-kgToLb(record.weight_kg))<1e-8);
+  assert.ok(Math.abs(bodyValues[index][1]-kgToLb(record.fat_mass_kg))<1e-8);
+  assert.equal(bodyValues[index][3],record.body_fat_percent);
+}
 for (const [sheet,range] of [['Read me','A1:B15'],['Members','A1:H7'],['Memberships','A1:J2'],['Attendance','A1:M8'],['Training','A1:F2'],['Body measurements','A1:H3']]) {
   const preview=await workbook.render({sheetName:sheet,range,scale:1.5,format:'png'});
   await writeFile(`${folder}/export-${sheet.replaceAll(' ','-')}.png`,new Uint8Array(await preview.arrayBuffer()));

@@ -69,6 +69,11 @@ test('PostgreSQL local API: authentication, transactions, permissions, retries a
     const deletedMeasurement=(await request('workspace',undefined,cookie)).body.data.body_measurements[0];
     assert.ok(deletedMeasurement.deleted_at);
     assert.equal((await command('measurement.save',measurement)).status,200);
+    const pounds={member_id:member.id,measurement_month:'2026-02-01',measurement_unit:'lb',weight_lb:'180.01',fat_mass_lb:'36',skeletal_muscle_lb:'70'};
+    assert.equal((await command('measurement.save',pounds,crypto.randomUUID(),receptionist.cookie)).status,200);
+    const poundRow=(await request('workspace',undefined,cookie)).body.data.body_measurements.find(row=>row.measurement_month==='2026-02-01');
+    assert.equal(poundRow.weight_kg,81.6511625237);
+    assert.equal((await command('measurement.save',{...pounds,id:poundRow.id,expected_updated_at:poundRow.updated_at},crypto.randomUUID(),receptionist.cookie)).status,200);
     const calendar={member_id:member.id,changes:[{date:'2026-01-02',present:true,expected:null}]};
     const calendarId=crypto.randomUUID();
     assert.equal((await command('attendance.calendar',calendar,calendarId,receptionist.cookie)).status,200);
@@ -91,8 +96,8 @@ test('PostgreSQL local API: authentication, transactions, permissions, retries a
     assert.equal(persisted.body.data.members.length,1);
     assert.equal(persisted.body.data.members[0].email,'local@example.test');
     assert.equal(persisted.body.data.attendance.length,2);
-    assert.equal(persisted.body.data.body_measurements.length,2);
-    assert.equal(persisted.body.data.body_measurements.filter(row=>!row.deleted_at).length,1);
+    assert.equal(persisted.body.data.body_measurements.length,3);
+    assert.equal(persisted.body.data.body_measurements.filter(row=>!row.deleted_at).length,2);
     const independent=new pg.Client({...config,database}); await independent.connect();
     assert.equal(Number((await independent.query('SELECT count(*) FROM gym_local.members')).rows[0].count),1);
     await independent.end();

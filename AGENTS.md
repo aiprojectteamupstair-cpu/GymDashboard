@@ -2,6 +2,26 @@
 
 Last updated: 2026-10-28. Business: The Community Fitness By Strategy First Gym.
 
+## October 28 pounds and measurement dashboard refinement
+
+- Measurement inputs, metric cards, history, charts and Excel now use **lb**.
+  Body fat stays percent. Supersedes the kg UI/export instructions below.
+- Canonical `*_kg` storage is retained with numeric(14,10) precision; lb commands
+  explicitly send `measurement_unit=lb` and `*_lb` fields. Old kg clients remain
+  compatible. An unchanged rounded lb field preserves its original stored value.
+  Never relabel existing kg numbers as lb or rewrite historical audit values.
+- Dashboard puts selectable metric cards with mini trends first, a focused
+  metric chart and monthly entry panel side by side, and history below. Compare
+  with previous/first recorded month; range and missing-month behavior remain.
+- Migration `20261028104605_measurement_pounds_precision` is deployed on approved
+  `snbfdktwrgzhwjqmyhdz`. Existing `gym-commands` v5 accepts the new payload; no
+  Edge deployment, Auth change, permission change or real measurement write.
+- 104 unit tests, local API/SQL precision/legacy preservation tests, lint, both
+  builds, responsive browser workflows and lb Excel render/formula checks passed.
+  Live Admin/Staff rollback checks retained zero fixtures. Vercel redeployment
+  and real authenticated hosted UI acceptance still pending. Native test-browser
+  downloads remain intermittent; generated workbook bytes are verified.
+
 ## October 28 monthly body measurements
 
 - Member profiles have Overview/Body measurements routes, including

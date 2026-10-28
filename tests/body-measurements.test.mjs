@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { strFromU8, unzipSync } from 'fflate';
 import { createPrototypeRepository, STORAGE_KEY } from '../src/prototype/repository.js';
 import { createEmptyData } from '../src/prototype/dataLifecycle.js';
-import { bodyFatPercent, measurementHistory, measurementSeries, validateMeasurement } from '../src/prototype/bodyMeasurements.js';
+import { bodyFatPercent, kgToLb, lbToKg, measurementInputs, measurementHistory, measurementSeries, validateMeasurement } from '../src/prototype/bodyMeasurements.js';
 import { createPrototypeWorkbook, exportTables } from '../src/prototype/export.js';
 import { memberPath, resolveRoute } from '../src/routes.js';
 import { createCommandHandler } from '../supabase/functions/gym-commands/handler.js';
@@ -75,12 +75,35 @@ test('measurement export includes only recorded active rows in selected months a
   const tables=exportTables(data,scope); const rows=tables.at(-1).rows;
   assert.equal(tables.length,6); assert.equal(rows.length,1); assert.equal(rows[0][0],'C001');
   assert.equal(rows[0][3],'10/2026'); assert.deepEqual(rows[0][7],{formula:'ROUND(F2/E2*100,2)',value:25});
+  assert.equal(tables.at(-1).headers[4],'Weight (lb)');
+  assert.equal(rows[0][4],kgToLb(80));
+  assert.equal(rows[0][5],kgToLb(20));
   assert.equal(exportTables(data,{start:'2026-08-01',end:'2026-10-28'}).at(-1).rows.length,3);
   const zip=unzipSync(createPrototypeWorkbook(data,scope)); const xml=strFromU8(zip['xl/worksheets/sheet6.xml']);
   assert.match(xml,/<f>ROUND\(F2\/E2\*100,2\)<\/f><v>25<\/v>/);
   assert.match(xml,/t="inlineStr"[^>]*><is><t xml:space="preserve">=Literal name/);
   assert.match(xml,/xSplit="3" ySplit="1"/);
   assert.match(strFromU8(zip['xl/styles.xml']),/0.00&quot;%&quot;/);
+});
+
+test('pounds round trip exactly while untouched legacy kg values and percentages stay unchanged',()=>{
+  const {repo,input,member}=setup();
+  repo.saveBodyMeasurement(input);
+  let row=measurementHistory(repo.getSnapshot(),member.id)[0];
+  assert.deepEqual(measurementInputs(row),{weight_lb:'176.37',fat_mass_lb:'44.09',skeletal_muscle_lb:'70.55'});
+  const edit={...measurementInputs(row),measurement_unit:'lb',member_id:member.id,measurement_month:row.measurement_month,id:row.id,expected_updated_at:row.updated_at};
+  repo.saveBodyMeasurement(edit);
+  row=measurementHistory(repo.getSnapshot(),member.id)[0];
+  assert.equal(row.weight_kg,80);assert.equal(row.fat_mass_kg,20);assert.equal(row.skeletal_muscle_kg,32);assert.equal(row.body_fat_percent,25);
+  repo.saveBodyMeasurement({...edit,expected_updated_at:row.updated_at,weight_lb:'180.01'});
+  row=measurementHistory(repo.getSnapshot(),member.id)[0];
+  assert.equal(row.weight_kg,81.6511625237);assert.equal(row.fat_mass_kg,20);assert.equal(row.skeletal_muscle_kg,32);
+  assert.equal(measurementInputs(row).weight_lb,'180.01');
+  for(const value of [0.01,0.1,123.45,180.01,2204.62]) assert.equal(Number(kgToLb(lbToKg(value)).toFixed(2)),value);
+  const base={measurement_unit:'lb',measurement_month:'2026-09-01',weight_lb:'180',fat_mass_lb:'36',skeletal_muscle_lb:'70'};
+  assert.equal(validateMeasurement(base,'2026-10-28').body_fat_percent,20);
+  for(const patch of [{measurement_unit:'stone'},{weight_lb:0},{weight_lb:2204.63},{weight_lb:'180.001'},{fat_mass_lb:181},{weight_kg:80},{skeletal_muscle_lb:null}]) assert.throws(()=>validateMeasurement({...base,...patch},'2026-10-28'));
+  assert.throws(()=>validateMeasurement({...input,weight_lb:180},'2026-10-28'),/one measurement unit/);
 });
 
 test('measurement profile deep links preserve normal profile routes',()=>{

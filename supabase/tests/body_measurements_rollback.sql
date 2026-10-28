@@ -24,7 +24,12 @@ begin
     exception when raise_exception then
       if sqlerrm not like 'This month already%' then raise; end if;
     end;
-    input:=input||jsonb_build_object('id',entry.id,'expected_updated_at',entry.updated_at,'fat_mass_kg',16);
+    input:=jsonb_build_object('member_id',person,'measurement_month','2026-01-01','measurement_unit','lb',
+      'weight_lb','176.37','fat_mass_lb','44.09','skeletal_muscle_lb','70.55','id',entry.id,'expected_updated_at',entry.updated_at);
+    perform public.gym_body_measurement(actor.user_id,gen_random_uuid(),'measurement.save',input);
+    select * into entry from public.body_measurements where id=entry.id;
+    assert entry.weight_kg=80 and entry.fat_mass_kg=20 and entry.skeletal_muscle_kg=32, 'Legacy values drifted';
+    input:=input||jsonb_build_object('expected_updated_at',entry.updated_at,'weight_lb','180.01','fat_mass_lb','36','skeletal_muscle_lb','70');
     perform public.gym_body_measurement(actor.user_id,gen_random_uuid(),'measurement.save',input);
     begin
       perform public.gym_body_measurement(actor.user_id,gen_random_uuid(),'measurement.save',input);
@@ -34,9 +39,10 @@ begin
     end;
     select * into entry from public.body_measurements where id=entry.id;
     assert entry.body_fat_percent=20, 'Edited percentage wrong';
+    assert entry.weight_kg=81.6511625237 and round(entry.weight_kg/0.45359237,2)=180.01, 'Pounds precision lost';
     perform public.gym_body_measurement(actor.user_id,gen_random_uuid(),'measurement.delete',jsonb_build_object('member_id',person,'id',entry.id,'expected_updated_at',entry.updated_at));
     assert (select deleted_at is not null from public.body_measurements where id=entry.id), 'Delete was not retained';
-    assert (select count(*)=3 from public.audit_events where entity_type='body_measurements' and entity_id=entry.id::text), 'Audit history incomplete';
+    assert (select count(*)=4 from public.audit_events where entity_type='body_measurements' and entity_id=entry.id::text), 'Audit history incomplete';
     result:=public.gym_body_measurement(actor.user_id,gen_random_uuid(),'measurement.save',input-'id'-'expected_updated_at');
     perform set_config('measurement_probe.member_id',person::text,true);
     perform set_config('request.jwt.claim.sub',actor.user_id::text,true);
