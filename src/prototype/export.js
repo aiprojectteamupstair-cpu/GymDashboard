@@ -41,6 +41,18 @@ export function exportTables(data, { start = '', end = '', category = 'all' } = 
   if (!validDate(rangeStart) || !validDate(rangeEnd) || days<1 || days>366) throw new Error('Choose an export period of 1–366 days.');
   const columns = Array.from({length:days},(_,i)=>shiftDays(rangeStart,i));
   const present = new Set(attendance.map(a=>`${a.member_id}/${a.attendance_date}`));
+  const visitCategory = value => value?.trim() === 'Staff' ? 'Staff/Employee' : value?.trim() || 'Not recorded';
+  const dailyCategories = [...new Set([...data.member_categories.map(row=>visitCategory(row.label)), ...attendance.map(row=>visitCategory(row.member_category_snapshot))])];
+  if (!dailyCategories.length) dailyCategories.push('Not recorded');
+  const dailyCounts = new Map(columns.map(day=>[day,new Map()]));
+  for (const visit of attendance) {
+    const counts=dailyCounts.get(visit.attendance_date), label=visitCategory(visit.member_category_snapshot);
+    counts.set(label,(counts.get(label) || 0)+1);
+  }
+  const dailyRows=columns.map((day,index)=>{
+    const counts=dailyCategories.map(label=>dailyCounts.get(day).get(label) || 0);
+    return [date(day),{formula:`SUM(C${index+2}:${column(dailyCategories.length+1)}${index+2})`,value:counts.reduce((sum,count)=>sum+count,0)},...counts];
+  });
   const measurementMembers=new Map(data.members.filter(m=>category==='all' || m.category_id===category).map(m=>[m.id,m]));
   const measurements=(data.body_measurements || []).filter(row=>!row.deleted_at && measurementMembers.has(row.member_id)
     && (!filtered || (row.measurement_month.slice(0,7)>=start.slice(0,7) && row.measurement_month.slice(0,7)<=end.slice(0,7))))
@@ -54,6 +66,7 @@ export function exportTables(data, { start = '', end = '', category = 'all' } = 
       ['Attendance calendar', 'All member categories use calendar months, from the 1st to the last day. Attendance sheet lists each actual visit once.'],
       ['Voucher No.', 'Memberships lists each saved membership voucher. A voucher may cover multiple people and is not a unique member ID. Blank means not recorded.'],
       ['Body measurements', 'Recorded months only, including archived members. Includes each month touched by the selected date range and uses current member category. Deleted entries and unmeasured members are excluded. Weight, fat mass and skeletal muscle are lb; body fat % = fat mass / weight * 100. Converted values retain precision and display two decimals.'],
+      ['Daily attendance', 'One row per Myanmar date in the selected period, respecting the attendance category filter. Each person counts once per day; voided visits are excluded. Category is the recorded category at visit, not the current profile. Staff and Staff/Employee are combined; missing categories appear as Not recorded. Zero means no matching recorded visits, not proof of absence. Daily totals sum the category counts.'],
     ] },
     { name: 'Members', headers: ['Member ID', 'Name', 'Category', 'Phone', 'Age', 'Student ID', 'Profile status', 'Remark'],
       rows: members.map(m => [m.member_code, m.full_name, categoryLabel(data, m), m.contact_phone, ageOn(m.date_of_birth, today) ?? '', m.student_id, m.archived_at ? 'Archived' : 'Current', m.remark]) },
@@ -65,6 +78,7 @@ export function exportTables(data, { start = '', end = '', category = 'all' } = 
       rows: training.map(t => [memberMap.get(t.member_id)?.member_code, memberMap.get(t.member_id)?.full_name, t.sessions, date(t.start_date), date(t.end_date), membershipStatus({ start_date: t.start_date, calculated_end_date: t.end_date }, today)]) },
     { name: 'Body measurements', headers: ['Member ID','Name','Category','Month','Weight (lb)','Fat mass (lb)','Skeletal muscle (lb)','Body fat (%)'],
       rows:measurements.map((row,index)=>{const member=measurementMembers.get(row.member_id);return [member.member_code,member.full_name,categoryLabel(data,member),`${row.measurement_month.slice(5,7)}/${row.measurement_month.slice(0,4)}`,kgToLb(row.weight_kg),kgToLb(row.fat_mass_kg),kgToLb(row.skeletal_muscle_kg),{formula:`ROUND(F${index+2}/E${index+2}*100,2)`,value:bodyFatPercent(row.fat_mass_kg,row.weight_kg)}];}) },
+    { name:'Daily attendance', headers:['Date','Total attendees',...dailyCategories], rows:dailyRows },
   ];
 }
 
@@ -78,7 +92,7 @@ function workbookStyles() {
     <fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>${fill('FF242424')}${fill('FFD9D9D9')}${fill('FFFCEFF1')}</fills>
     <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
     <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-    <cellXfs count="15">${style(0,0)}${style(1,2,0,true)}${style(0,3)}${style(0,0,164,true)}${style(0,3,164,true)}${style(2,4,165,true)}${style(0,0,165,true)}${style(0,3,165,true)}${style(1,2,1,true)}${style(0,0,49)}${style(0,3,49)}${style(0,0,2,true)}${style(0,3,2,true)}${style(0,0,166,true)}${style(0,3,166,true)}</cellXfs>
+    <cellXfs count="17">${style(0,0)}${style(1,2,0,true)}${style(0,3)}${style(0,0,164,true)}${style(0,3,164,true)}${style(2,4,165,true)}${style(0,0,165,true)}${style(0,3,165,true)}${style(1,2,1,true)}${style(0,0,49)}${style(0,3,49)}${style(0,0,2,true)}${style(0,3,2,true)}${style(0,0,166,true)}${style(0,3,166,true)}${style(0,0,1,true)}${style(0,3,1,true)}</cellXfs>
     <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
 }
 
@@ -111,10 +125,10 @@ export function createPrototypeWorkbook(data, scope) {
     }
     const rows = [
       ...(matrix ? ['<row r="1" ht="30" customHeight="1">' + monthCells.join('') + '</row>'] : []),
-      '<row r="' + headerRow + '" ht="32" customHeight="1">' + table.headers.map((v,c)=>cell(matrix && c >= 3 ? Number(v.slice(8)) : v,headerRow,c,matrix && c >= 3 ? 8 : 1)).join('') + '</row>',
-      ...table.rows.map((row,r)=>'<row r="' + (r + headerRow + 1) + '" ht="' + Math.max(28,...row.map(v=>Math.ceil(String(typeof v === 'object' ? '' : v ?? '').length/(table.name==='Read me'?90:38))*17)) + '" customHeight="1">' + row.map((v,c)=>cell(v,r+headerRow+1,c,matrix && c>=3 ? v===1 ? 5 : r%2 ? 6 : 7 : table.name==='Body measurements' && c>=4 ? (c===7 ? 13 : 11)+(r%2 ? 0 : 1) : r%2 ? 0 : 2)).join('') + '</row>')
+      '<row r="' + headerRow + '" ht="' + (table.name==='Daily attendance' ? 42 : 32) + '" customHeight="1">' + table.headers.map((v,c)=>cell(matrix && c >= 3 ? Number(v.slice(8)) : v,headerRow,c,matrix && c >= 3 ? 8 : 1)).join('') + '</row>',
+      ...table.rows.map((row,r)=>'<row r="' + (r + headerRow + 1) + '" ht="' + Math.max(28,...row.map(v=>Math.ceil(String(typeof v === 'object' ? '' : v ?? '').length/(table.name==='Read me'?90:38))*17)) + '" customHeight="1">' + row.map((v,c)=>cell(v,r+headerRow+1,c,matrix && c>=3 ? v===1 ? 5 : r%2 ? 6 : 7 : table.name==='Daily attendance' && c>=1 ? 15+(r%2 ? 0 : 1) : table.name==='Body measurements' && c>=4 ? (c===7 ? 13 : 11)+(r%2 ? 0 : 1) : r%2 ? 0 : 2)).join('') + '</row>')
     ];
-    const pane = matrix ? 'xSplit="3" ySplit="2" topLeftCell="D3" activePane="bottomRight"' : table.name==='Body measurements' ? 'xSplit="3" ySplit="1" topLeftCell="D2" activePane="bottomRight"' : 'ySplit="1" topLeftCell="A2" activePane="bottomLeft"';
+    const pane = matrix ? 'xSplit="3" ySplit="2" topLeftCell="D3" activePane="bottomRight"' : table.name==='Body measurements' ? 'xSplit="3" ySplit="1" topLeftCell="D2" activePane="bottomRight"' : table.name==='Daily attendance' ? 'xSplit="1" ySplit="1" topLeftCell="B2" activePane="bottomRight"' : 'ySplit="1" topLeftCell="A2" activePane="bottomLeft"';
     const cols = table.headers.map((h,c)=>'<col min="' + (c+1) + '" max="' + (c+1) + '" width="' + (matrix && c>=3 ? 6 : table.name==='Read me' ? c===1 ? 100 : 30 : h==='Remark' ? 42 : h==='Name' ? 26 : h==='Package' ? 24 : /Category|Discount/.test(h) ? 22 : 18) + '" customWidth="1"/>').join('');
     add('xl/worksheets/sheet' + (i+1) + '.xml', '<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ' + pane + ' state="frozen"/></sheetView></sheetViews><cols>' + cols + '</cols><sheetData>' + rows.join('') + '</sheetData><autoFilter ref="A' + headerRow + ':' + column(table.headers.length-1) + (table.rows.length+headerRow) + '"/>' + (merges.length ? '<mergeCells count="' + merges.length + '">' + merges.map(ref=>'<mergeCell ref="' + ref + '"/>').join('') + '</mergeCells>' : '') + '</worksheet>');
   });

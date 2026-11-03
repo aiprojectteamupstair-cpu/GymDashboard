@@ -1,5 +1,37 @@
 # Development and production
 
+## November 3 verification
+
+Analytics Export Excel appends `Daily attendance` as sheet seven. It uses the
+selected inclusive date range and category-at-visit filter, counts a person once
+per Myanmar date, excludes voids and includes zero-record days. Categories come
+from attendance snapshots, preserving historical membership changes and combining
+the `Staff` / `Staff/Employee` labels. Missing snapshots use `Not recorded`;
+other historical labels retain their own columns. A zero is not proof of absence.
+Daily totals sum their category cells. Dates are typed DD/MM/YYYY; header/date
+freezes, filters and black/gray/white styling match the existing workbook.
+The first six sheets and lb measurement contract are retained.
+
+Checks: 109 unit tests, lint, production/local builds, seven-sheet XLSX import,
+formula reconciliation and rendered previews. Synthetic Analytics browser export
+checks verify selected dates, all/customer/staff filters and zero-record days.
+No remote or local business data changed; Vercel redeployment and real hosted
+browser acceptance remain pending.
+
+```powershell
+npm test
+npm run lint
+npm run build
+npm run build:local
+node scripts/test-daily-export-ui.mjs
+node scripts/test-export-visual.mjs
+```
+
+The browser test needs the dev server, Edge and `PLAYWRIGHT_MODULE`; visual checks
+use the bundled `BUNDLED_NODE_MODULES` runtime. Generated synthetic workbooks and
+previews remain under ignored `.local-db/ui-checks/`. Browser tests capture export
+bytes directly so OS download-policy restrictions cannot hide content failures.
+
 Current handover workflow, October 5, 2026. This supersedes older backend setup notes.
 
 ## October 28 verification

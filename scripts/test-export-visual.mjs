@@ -14,7 +14,7 @@ const data=createEmptyData();
 data.members=Array.from({length:6},(_,index)=>({id:`export-${index}`,member_code:`C00${index+1}`,full_name:`Sample Member ${index+1}`,category_id:'customer',contact_phone:'091234567',remark:index===0?'Source dates preserved.':''}));
 data.memberships=[{id:'membership',member_id:'export-0',package_snapshot:{label:'Gym'},plan_snapshot:{label:'1 month'},start_date:'2026-09-03',source_end_date:'2026-10-03',voucher_reference:'001234'}];
 data.training_purchases=[{id:'training',member_id:'export-0',sessions:5,start_date:'2026-09-03',end_date:'2026-10-03'}];
-data.attendance=data.members.flatMap((member,index)=>['01','03','05','06'].filter((_,day)=>(index+day)%3!==0).map(day=>({id:`${member.id}-${day}`,member_id:member.id,attendance_date:`2026-10-${day}`,member_category_snapshot:'Customer'})));
+data.attendance=data.members.flatMap((member,index)=>['01','03','05','06'].filter((_,day)=>(index+day)%3!==0).map(day=>({id:`${member.id}-${day}`,member_id:member.id,attendance_date:`2026-10-${day}`,member_category_snapshot:['VIP Customer','Customer','Student','Staff','Guest','Customer'][index]})));
 data.body_measurements=[{id:'measurement-1',member_id:'export-0',measurement_month:'2026-10-01',weight_kg:80,fat_mass_kg:20,skeletal_muscle_kg:32,body_fat_percent:25},
   {id:'measurement-2',member_id:'export-1',measurement_month:'2026-10-01',weight_kg:62.5,fat_mass_kg:12.5,skeletal_muscle_kg:25,body_fat_percent:20}];
 await writeFile(`${folder}/export-preview.xlsx`,createPrototypeWorkbook(data,{start:'2026-10-01',end:'2026-10-10'}));
@@ -29,8 +29,15 @@ for(const [index,record] of data.body_measurements.entries()) {
   assert.ok(Math.abs(bodyValues[index][1]-kgToLb(record.fat_mass_kg))<1e-8);
   assert.equal(bodyValues[index][3],record.body_fat_percent);
 }
-for (const [sheet,range] of [['Read me','A1:B15'],['Members','A1:H7'],['Memberships','A1:J2'],['Attendance','A1:M8'],['Training','A1:F2'],['Body measurements','A1:H3']]) {
+const daily=workbook.worksheets.getItem('Daily attendance').getRange('B2:G11').values;
+assert.equal(daily.reduce((sum,row)=>sum+row[0],0),data.attendance.length);
+for(const [index,row] of daily.entries()) {
+  assert.equal(row[0],row.slice(1).reduce((sum,count)=>sum+count,0));
+  assert.equal(row[0],attendance.reduce((sum,member)=>sum+Number(member[index]||0),0));
+}
+assert.equal(daily[1][0],0);
+for (const [sheet,range] of [['Read me','A1:B16'],['Members','A1:H7'],['Memberships','A1:J2'],['Attendance','A1:M8'],['Training','A1:F2'],['Body measurements','A1:H3'],['Daily attendance','A1:G11']]) {
   const preview=await workbook.render({sheetName:sheet,range,scale:1.5,format:'png'});
   await writeFile(`${folder}/export-${sheet.replaceAll(' ','-')}.png`,new Uint8Array(await preview.arrayBuffer()));
 }
-console.log('Export imported, presence/measurement totals and formulas reconciled, all six sheet previews rendered. Synthetic data only.');
+console.log('Export imported, daily category/presence/measurement totals and formulas reconciled, all seven sheet previews rendered. Synthetic data only.');

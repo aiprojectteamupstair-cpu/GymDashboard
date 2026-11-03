@@ -1,6 +1,20 @@
 # Project context and working rules
 
-Last updated: 2026-10-28. Business: The Community Fitness By Strategy First Gym.
+Last updated: 2026-11-03. Business: The Community Fitness By Strategy First Gym.
+
+## November 3 daily attendance export
+
+- Analytics Excel now has SEVEN sheets, appending `Daily attendance` after the
+  existing six. Each selected Myanmar date has a DMY date, total attendees and
+  category-at-visit counts; zero-record days remain visible as numeric zeroes.
+- Reuses the attendance export's period/category filter, daily deduplication and
+  void exclusion. Staff/Staff-Employee label aliases are combined; unknown and
+  legacy categories remain explicit, never inferred from today's member profile.
+- Daily totals are SUM formulas with cached values; category sums reconcile with
+  the attendance matrix. Black headers, gray/white bands, filters, frozen date
+  column/header match the workbook. Existing measurements remain lb.
+- No database, Auth, migration or deployment changes. See November 3 verification
+  in docs/DEVELOPMENT.md; Vercel redeployment remains needed for hosted availability.
 
 ## October 28 pounds and measurement dashboard refinement
 

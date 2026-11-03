@@ -72,13 +72,13 @@ test('measurement export includes only recorded active rows in selected months a
   const base={weight_kg:80,fat_mass_kg:20,skeletal_muscle_kg:32,body_fat_percent:999};
   data.body_measurements=[{...base,id:'1',member_id:'a',measurement_month:'2026-10-01'},{...base,id:'2',member_id:'a',measurement_month:'2026-09-01'},{...base,id:'3',member_id:'b',measurement_month:'2026-10-01'},{...base,id:'4',member_id:'a',measurement_month:'2026-08-01',deleted_at:'2026-10-01'}];
   const scope={start:'2026-10-15',end:'2026-10-28',category:'customer'};
-  const tables=exportTables(data,scope); const rows=tables.at(-1).rows;
-  assert.equal(tables.length,6); assert.equal(rows.length,1); assert.equal(rows[0][0],'C001');
+  const tables=exportTables(data,scope); const measurements=tables.find(table=>table.name==='Body measurements'); const rows=measurements.rows;
+  assert.equal(tables.length,7); assert.equal(rows.length,1); assert.equal(rows[0][0],'C001');
   assert.equal(rows[0][3],'10/2026'); assert.deepEqual(rows[0][7],{formula:'ROUND(F2/E2*100,2)',value:25});
-  assert.equal(tables.at(-1).headers[4],'Weight (lb)');
+  assert.equal(measurements.headers[4],'Weight (lb)');
   assert.equal(rows[0][4],kgToLb(80));
   assert.equal(rows[0][5],kgToLb(20));
-  assert.equal(exportTables(data,{start:'2026-08-01',end:'2026-10-28'}).at(-1).rows.length,3);
+  assert.equal(exportTables(data,{start:'2026-08-01',end:'2026-10-28'}).find(table=>table.name==='Body measurements').rows.length,3);
   const zip=unzipSync(createPrototypeWorkbook(data,scope)); const xml=strFromU8(zip['xl/worksheets/sheet6.xml']);
   assert.match(xml,/<f>ROUND\(F2\/E2\*100,2\)<\/f><v>25<\/v>/);
   assert.match(xml,/t="inlineStr"[^>]*><is><t xml:space="preserve">=Literal name/);
