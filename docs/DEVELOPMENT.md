@@ -1,5 +1,54 @@
 # Development and production
 
+## November 4 verification
+
+Custom-period Members/Memberships now use inclusive coverage:
+`membership.start_date <= period.end && effective_end >= period.start`.
+Effective end retains override/source/calculated precedence. This is reporting
+inclusion, not a change to expiry-day entry permission. Prior long-term purchases,
+memberships expiring during the period and historically eligible archived members
+remain included. Voids, earlier expiries and future starts are excluded.
+Members has one row per stable person ID and no Profile status column; Memberships
+keeps separate in-period renewals/packages. Status is explicitly as of period end,
+as is member age. Original membership dates are not clipped. Snapshot category
+filters are independent of attendance; missing snapshots use current category.
+
+Unknown or invalid coverage is excluded with member/record identifiers and reasons
+in Read me, not silently treated as active or repaired. Known dates that already
+prove the record is outside the period are excluded without a review item.
+Identical duplicate IDs collapse; inconsistent copies or missing stable IDs fail
+export. Selected orphan membership/attendance references also fail rather than
+creating unmatched totals. Distinct IDs are not merged by names, shared phone or
+voucher. This does not certify source records with different IDs as duplicate-free.
+
+Attendance and Daily attendance remain independent, including guests and recorded
+visits without paid membership. Training history and monthly lb measurements keep
+their prior scope. Seven sheets remain; their populations intentionally differ.
+An export without a custom range retains its historical all-data behavior, except
+Members no longer includes Profile status and identity safety checks still apply.
+
+Verified: 116 unit tests, lint, production/local builds, synthetic browser export
+with all/customer/staff filters, and XLSX import/reconciliation/rendering. Tests
+cover long plans, renewal separation, inclusive/leap/year boundaries, override
+precedence, voids, archived profiles, unknown/reversed dates, conflicting IDs,
+unpaid guests, source immutability, DMY dates and literal Excel text. Independent
+XLSX reads verify phone/voucher leading zeros (the preview renderer may display
+numeric-looking text without its leading zeros). Existing permission, transaction,
+RLS relay and session tests remain in the unit regression suite.
+
+```powershell
+npm test
+npm run lint
+npm run build
+npm run build:local
+node scripts/test-daily-export-ui.mjs
+node scripts/test-export-visual.mjs
+```
+
+No live database records, Auth, schema or cloud deployment were changed. This is
+an export-path review/regression check, not an exhaustive production data/security
+audit. Vercel frontend redeployment and real hosted acceptance remain pending.
+
 ## November 3 verification
 
 Analytics Export Excel appends `Daily attendance` as sheet seven. It uses the

@@ -1,6 +1,25 @@
 # Project context and working rules
 
-Last updated: 2026-11-03. Business: The Community Fitness By Strategy First Gym.
+Last updated: 2026-11-04. Business: The Community Fitness By Strategy First Gym.
+
+## November 4 period-eligible member exports
+
+- Custom-period Members includes one row per person with a nonvoided membership
+  overlapping the inclusive period. Memberships includes only overlapping records,
+  retaining distinct renewals/packages. Earlier 3/6/12-month purchases qualify;
+  expired-before-period and starts-after-period do not. Current archival does not
+  erase historical eligibility. Profile status column removed from Members.
+- Effective expiry remains override, source, then calculated. Membership status
+  and member age use period end. Membership category filtering uses its snapshot,
+  falling back to current category only when no snapshot exists.
+- Missing/invalid/inverted dates are never inferred: unconfirmed potentially
+  relevant memberships are excluded and identified in Read me for review. Repeated
+  identical stable IDs collapse; conflicting copies/missing identities or selected
+  orphan references stop export. Shared names/vouchers never merge distinct IDs.
+- Seven sheets retained. Attendance/daily attendance, Training and lb measurements
+  keep their own existing populations, independently of paid membership eligibility.
+  No database/Auth/schema/deployment changes. See November 4 verification in
+  docs/DEVELOPMENT.md; production frontend redeployment remains pending.
 
 ## November 3 daily attendance export
 

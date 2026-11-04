@@ -6,6 +6,17 @@ const xml = value => Array.from(String(value ?? '')).filter(char => char.codePoi
 const column = index => { let result = ''; for (let n = index + 1; n > 0; n = Math.floor((n - 1) / 26)) result = String.fromCharCode(65 + (n - 1) % 26) + result; return result; };
 const date = value => value ? { date: value } : '';
 
+function uniqueRecords(rows, name) {
+  const records=new Map();
+  for (const row of rows) {
+    if (!row.id) throw new Error(`Cannot export ${name}: a record has no stable ID.`);
+    const previous=records.get(row.id);
+    if (previous && JSON.stringify(previous)!==JSON.stringify(row)) throw new Error(`Cannot export ${name}: conflicting copies of record ${row.id}. Refresh and retry.`);
+    records.set(row.id,row);
+  }
+  return [...records.values()];
+}
+
 function cell(value, row, col, style = 0) {
   const ref = `${column(col)}${row}`;
   if (value && typeof value === 'object' && value.formula) return `<c r="${ref}" s="${style}"><f>${xml(value.formula)}</f><v>${value.value}</v></c>`;
@@ -19,21 +30,51 @@ function cell(value, row, col, style = 0) {
 
 export function exportTables(data, { start = '', end = '', category = 'all' } = {}) {
   const filtered = Boolean(start && end);
+  if ((start || end) && (!filtered || !validDate(start) || !validDate(end) || start>end)) throw new Error('Choose a valid export period with both start and end dates.');
   const selectedLabel = data.member_categories.find(c => c.id === category)?.label;
+  const allMembers=uniqueRecords(data.members,'members');
+  const memberMap=new Map(allMembers.map(member=>[member.id,member]));
   const seen = new Set();
   const attendance = data.attendance.filter(a => !a.voided_at && (category === 'all' || (category === 'staff' ? ['Staff', 'Staff/Employee'].includes(a.member_category_snapshot) : a.member_category_snapshot === selectedLabel)) && (!filtered || (a.attendance_date >= start && a.attendance_date <= end))).sort((a, b) => (a.checked_in_at || a.attendance_date).localeCompare(b.checked_in_at || b.attendance_date)).filter(a => {
     const key = `${a.member_id}/${a.attendance_date}`;
     if (seen.has(key)) return false;
     seen.add(key); return true;
   });
+  for (const visit of attendance) {
+    if (!memberMap.has(visit.member_id) || !validDate(visit.attendance_date)) throw new Error('Cannot export attendance: a selected visit has a missing member or invalid date. Refresh and review the source record.');
+  }
   const ids = new Set(attendance.map(a => a.member_id));
-  const members = data.members.filter(m => category === 'all' || m.category_id === category || ids.has(m.id));
-  const memberIds = new Set(members.map(m=>m.id));
-  const memberships = data.memberships.filter(m => !m.voided_at && (memberIds.has(m.member_id)));
-  const training = (data.training_purchases || []).filter(t => !t.voided_at && (memberIds.has(t.member_id)));
-  const memberMap = new Map(members.map(m => [m.id, m]));
-  const scope = filtered ? `Attendance: ${formatDate(start)} to ${formatDate(end)} (Myanmar). Includes selected members with no recorded visits and their history.` : 'All members and history, including archived profiles.';
+  // Attendance remains independent of paid membership eligibility, including guests.
+  const attendanceMembers = allMembers.filter(m => category === 'all' || m.category_id === category || ids.has(m.id));
+  const attendanceMemberIds = new Set(attendanceMembers.map(m=>m.id));
+  const reviews=[];
+  const normalizeCategory=value=>value==='Staff'?'Staff/Employee':value;
+  const memberships = uniqueRecords(data.memberships,'memberships').filter(m=>{
+    if (m.voided_at) return false;
+    const person=memberMap.get(m.member_id);
+    const label=m.member_category_snapshot || (person && categoryLabel(data,person));
+    if (filtered ? category!=='all' && normalizeCategory(label)!==normalizeCategory(selectedLabel) : !attendanceMemberIds.has(m.member_id)) return false;
+    if (filtered) {
+      const from=m.start_date, through=endDate(m);
+      if (validDate(from) && validDate(through) && from>through) {
+        reviews.push(['Membership review',`${person?.member_code || m.member_id} / ${m.id}: Excluded because membership end precedes its start.`]);
+        return false;
+      }
+      if ((validDate(through) && through<start) || (validDate(from) && from>end)) return false;
+      if (!validDate(from) || !validDate(through)) {
+        reviews.push(['Membership review',`${person?.member_code || m.member_id} / ${m.id}: Excluded because start/end date is missing or invalid; period eligibility cannot be confirmed.`]);
+        return false;
+      }
+    }
+    if (!person) throw new Error(`Cannot export membership ${m.id}: member profile is missing. Refresh and retry.`);
+    return true;
+  });
+  const memberIds=new Set(memberships.map(m=>m.member_id));
+  const members=filtered ? allMembers.filter(m=>memberIds.has(m.id)) : attendanceMembers;
+  const training = (data.training_purchases || []).filter(t => !t.voided_at && attendanceMemberIds.has(t.member_id));
+  const scope = filtered ? `Membership eligibility: ${formatDate(start)} to ${formatDate(end)} (Myanmar), inclusive. Members have at least one nonvoided membership overlapping this period; Memberships contains only those overlapping records.` : 'All members and history, including archived profiles.';
   const today = localDate();
+  const statusDate=filtered ? end : today;
   const dates = attendance.map(a=>a.attendance_date).sort();
   const rangeStart = filtered ? start : dates[0] || today;
   const rangeEnd = filtered ? end : dates.at(-1) || today;
@@ -62,18 +103,23 @@ export function exportTables(data, { start = '', end = '', category = 'all' } = 
       ['The Community Fitness', 'Member and attendance report'], ['Scope', scope], ['Attendance category', category === 'all' ? 'All categories' : selectedLabel || category], ['Exported on', date(today)],
       ['Timezone', 'Myanmar (Asia/Rangoon)'], ['Members', members.length], ['Memberships', memberships.length], ['Attendance', attendance.length], ['PT purchases', training.length],
       ['Notes', 'Attendance: 1 = recorded presence. Blank = no matching check-in record, not proof of absence. Zero values are retained for calculations but displayed as blank. Includes selected members even with no visits. Current category or matching historical visits determine the selected population.'],
-      ['Dates and status', 'End dates include admin overrides. Status and age are as of export date. Attendance columns cover every day of the selected period.'],
+      ['Dates and status', `Membership status and member age are as of ${formatDate(statusDate)}${filtered?' (period end)':' (export date)'}. Membership end uses override, then source expiry, then calculated expiry. Original start/end dates are not clipped to the report period. Training status remains as of export date.`],
       ['Attendance calendar', 'All member categories use calendar months, from the 1st to the last day. Attendance sheet lists each actual visit once.'],
       ['Voucher No.', 'Memberships lists each saved membership voucher. A voucher may cover multiple people and is not a unique member ID. Blank means not recorded.'],
       ['Body measurements', 'Recorded months only, including archived members. Includes each month touched by the selected date range and uses current member category. Deleted entries and unmeasured members are excluded. Weight, fat mass and skeletal muscle are lb; body fat % = fat mass / weight * 100. Converted values retain precision and display two decimals.'],
       ['Daily attendance', 'One row per Myanmar date in the selected period, respecting the attendance category filter. Each person counts once per day; voided visits are excluded. Category is the recorded category at visit, not the current profile. Staff and Staff/Employee are combined; missing categories appear as Not recorded. Zero means no matching recorded visits, not proof of absence. Daily totals sum the category counts.'],
+      ['Membership selection', 'Start <= period end AND effective end >= period start. Includes earlier purchases, expiry within the period and currently archived profiles whose membership covered the period. Excludes voids, expired-before-period and starts-after-period. Category filter uses membership category snapshot, falling back to current member category only when missing.'],
+      ['Record identity', 'Members has one row per stable member ID. Memberships has one row per saved membership ID; distinct renewals/packages for the same person remain separate. Names, phone numbers and shared vouchers never merge people or purchases.'],
+      ['Unconfirmed membership dates', `${reviews.length} records excluded from the selected-period member/membership population for date review. See review entries below; no missing dates were inferred.`],
+      ['Other sheet populations', 'Attendance and Daily attendance retain recorded visits independently of paid membership, including guests. Training retains its existing history scope. Body measurements retains its monthly scope. Their populations need not equal the eligible Members sheet.'],
+      ...reviews,
     ] },
-    { name: 'Members', headers: ['Member ID', 'Name', 'Category', 'Phone', 'Age', 'Student ID', 'Profile status', 'Remark'],
-      rows: members.map(m => [m.member_code, m.full_name, categoryLabel(data, m), m.contact_phone, ageOn(m.date_of_birth, today) ?? '', m.student_id, m.archived_at ? 'Archived' : 'Current', m.remark]) },
-    { name: 'Memberships', headers: ['Member ID', 'Name', 'Package', 'Plan', 'Discount', 'Start date', 'End date', 'Status', 'Voucher No.', 'Remark'],
-      rows: memberships.map(m => [memberMap.get(m.member_id)?.member_code, memberMap.get(m.member_id)?.full_name, m.package_snapshot?.label || 'Not recorded', m.plan_snapshot?.label || 'Not recorded', m.discount_snapshot?.label || (m.plan_snapshot ? 'None' : 'Not recorded'), date(m.start_date), date(endDate(m)), membershipStatus(m, today), m.voucher_reference || '', m.remark]) },
+    { name: 'Members', headers: ['Member ID', 'Name', 'Category', 'Phone', 'Age', 'Student ID', 'Remark'],
+      rows: members.map(m => [m.member_code, m.full_name, categoryLabel(data, m), m.contact_phone, ageOn(m.date_of_birth, statusDate) ?? '', m.student_id, m.remark]) },
+    { name: 'Memberships', headers: ['Member ID', 'Name', 'Package', 'Plan', 'Discount', 'Start date', 'End date', filtered ? 'Status at period end' : 'Status', 'Voucher No.', 'Remark'],
+      rows: memberships.map(m => [memberMap.get(m.member_id)?.member_code, memberMap.get(m.member_id)?.full_name, m.package_snapshot?.label || 'Not recorded', m.plan_snapshot?.label || 'Not recorded', m.discount_snapshot?.label || (m.plan_snapshot ? 'None' : 'Not recorded'), date(m.start_date), date(endDate(m)), membershipStatus(m, statusDate), m.voucher_reference || '', m.remark]) },
     { name: 'Attendance', headers: ['Member ID', 'Name', 'Category', ...columns],
-      rows: members.map(m => [m.member_code, m.full_name, categoryLabel(data,m), ...columns.map(day=>present.has(`${m.id}/${day}`) ? 1 : 0)]) },
+      rows: attendanceMembers.map(m => [m.member_code, m.full_name, categoryLabel(data,m), ...columns.map(day=>present.has(`${m.id}/${day}`) ? 1 : 0)]) },
     { name: 'Training', headers: ['Member ID', 'Name', 'PT sessions', 'Start date', 'End date', 'Status'],
       rows: training.map(t => [memberMap.get(t.member_id)?.member_code, memberMap.get(t.member_id)?.full_name, t.sessions, date(t.start_date), date(t.end_date), membershipStatus({ start_date: t.start_date, calculated_end_date: t.end_date }, today)]) },
     { name: 'Body measurements', headers: ['Member ID','Name','Category','Month','Weight (lb)','Fat mass (lb)','Skeletal muscle (lb)','Body fat (%)'],
@@ -125,7 +171,7 @@ export function createPrototypeWorkbook(data, scope) {
     }
     const rows = [
       ...(matrix ? ['<row r="1" ht="30" customHeight="1">' + monthCells.join('') + '</row>'] : []),
-      '<row r="' + headerRow + '" ht="' + (table.name==='Daily attendance' ? 42 : 32) + '" customHeight="1">' + table.headers.map((v,c)=>cell(matrix && c >= 3 ? Number(v.slice(8)) : v,headerRow,c,matrix && c >= 3 ? 8 : 1)).join('') + '</row>',
+      '<row r="' + headerRow + '" ht="' + (['Daily attendance','Memberships'].includes(table.name) ? 42 : 32) + '" customHeight="1">' + table.headers.map((v,c)=>cell(matrix && c >= 3 ? Number(v.slice(8)) : v,headerRow,c,matrix && c >= 3 ? 8 : 1)).join('') + '</row>',
       ...table.rows.map((row,r)=>'<row r="' + (r + headerRow + 1) + '" ht="' + Math.max(28,...row.map(v=>Math.ceil(String(typeof v === 'object' ? '' : v ?? '').length/(table.name==='Read me'?90:38))*17)) + '" customHeight="1">' + row.map((v,c)=>cell(v,r+headerRow+1,c,matrix && c>=3 ? v===1 ? 5 : r%2 ? 6 : 7 : table.name==='Daily attendance' && c>=1 ? 15+(r%2 ? 0 : 1) : table.name==='Body measurements' && c>=4 ? (c===7 ? 13 : 11)+(r%2 ? 0 : 1) : r%2 ? 0 : 2)).join('') + '</row>')
     ];
     const pane = matrix ? 'xSplit="3" ySplit="2" topLeftCell="D3" activePane="bottomRight"' : table.name==='Body measurements' ? 'xSplit="3" ySplit="1" topLeftCell="D2" activePane="bottomRight"' : table.name==='Daily attendance' ? 'xSplit="1" ySplit="1" topLeftCell="B2" activePane="bottomRight"' : 'ySplit="1" topLeftCell="A2" activePane="bottomLeft"';
