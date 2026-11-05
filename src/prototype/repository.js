@@ -1,6 +1,6 @@
 import { createEmptyData, retireLocalFixtures } from './dataLifecycle.js';
 import { categoryLabel, currentMembership, localDate, validDate } from './domain.js';
-import { CATEGORIES, nextMemberCode, upgradeData } from './catalogue.js';
+import { CATEGORIES, GUEST_TYPES, nextMemberCode, upgradeData } from './catalogue.js';
 import { appendMembership } from './membershipService.js';
 import { applyAttendanceCalendar } from './attendanceCalendarService.js';
 import { applyBodyMeasurement } from './bodyMeasurements.js';
@@ -90,6 +90,15 @@ export function createPrototypeRepository(storage = window.localStorage, clock =
         if (email && (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) throw new Error('Enter a valid email address.');
         const changes = { full_name: name, category_id: input.category_id, contact_phone: input.contact_phone?.trim() || '', date_of_birth: input.date_of_birth || '', student_id: input.student_id?.trim() || '', remark: input.remark?.trim() || '' };
         changes.email = email;
+        const requestedType = input.guest_type ?? '';
+        if (requestedType !== '' && (input.category_id !== 'guest' || !GUEST_TYPES.some(type => type.id === requestedType))) {
+          throw new Error('Choose a valid guest type for a Guest profile.');
+        }
+        if (!existing && input.category_id === 'guest' && Object.hasOwn(input, 'guest_type') && !requestedType) {
+          throw new Error('Choose a guest type.');
+        }
+        changes.guest_type = input.category_id === 'guest' && !Object.hasOwn(input, 'guest_type')
+          ? existing?.guest_type ?? null : requestedType || null;
         const changedCategory = existing && existing.category_id !== input.category_id;
         if (changedCategory && input.category_id === 'guest') throw new Error('An existing member cannot be changed back to a trial guest.');
         if (existing?.category_id === 'guest' && changedCategory && !input.membership) throw new Error('Choose a package and plan to convert this guest.');

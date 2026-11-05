@@ -3,7 +3,7 @@ import { DateInput } from './DateInput.jsx';
 import { ArrowRight, CalendarDays, CheckCircle2, Info, RotateCw, ShieldCheck, UserPlus } from 'lucide-react';
 import { Avatar, Badge, Button, Dialog, Field } from './components.jsx';
 import { addMonths, categoryLabel, currentMembership, endDate, formatDate, formatTime, guestStatus, membershipStatus } from './domain.js';
-import { CATEGORIES, nextMemberCode, TRAINING_MONTHS } from './catalogue.js';
+import { CATEGORIES, GUEST_TYPES, nextMemberCode, TRAINING_MONTHS } from './catalogue.js';
 
 function initialSubscription(today) {
   return { package_id: '', plan_id: '', discount_id: '', start_date: today, voucher_reference: '',
@@ -61,7 +61,7 @@ export function MemberForm({ data, member, today, onClose, onSave }) {
   const update = (key, value) => setValues(v => ({ ...v, [key]: value }));
   function submit(event) {
     event.preventDefault();
-    try { onSave({ ...values, membership: includeMembership ? subscription : null }, member?.id); } catch (e) { setError(e.message); }
+    try { onSave({ ...values, guest_type: guest ? values.guest_type || null : null, membership: includeMembership ? subscription : null }, member?.id); } catch (e) { setError(e.message); }
   }
   return <Dialog title={conversion ? 'Convert guest to member' : member ? 'Edit member' : 'Add a member or guest'} subtitle={member ? `${member.member_code} · ${member.full_name}` : 'Create a profile and choose their access.'} onClose={onClose} wide>
     <form onSubmit={submit}><div className="dialog-body">
@@ -69,6 +69,12 @@ export function MemberForm({ data, member, today, onClose, onSave }) {
       <div className="form-grid">
         <Field label="Full name *"><input autoFocus required maxLength={120} value={values.full_name} onChange={e => update('full_name', e.target.value)} placeholder="Enter full name" /></Field>
         <Field label="Member category *"><select value={values.category_id} onChange={e => update('category_id', e.target.value)}>{CATEGORIES.filter(c => !(member && member.category_id !== 'guest' && c.id === 'guest')).map(c => <option value={c.id} key={c.id}>{c.label}</option>)}{values.category_id === 'unknown' && <option value="unknown">Unknown (historical)</option>}</select></Field>
+        {guest && <Field label={member ? 'Guest type' : 'Guest type *'}>
+          <select required={!member} value={values.guest_type || ''} onChange={e => update('guest_type', e.target.value)}>
+            <option value="">{member ? 'Not recorded' : 'Choose guest type'}</option>
+            {GUEST_TYPES.map(type => <option key={type.id} value={type.id}>{type.label}</option>)}
+          </select>
+        </Field>}
         <Field label="Phone number" hint="Optional. Shared contact numbers are allowed."><input type="tel" value={values.contact_phone} onChange={e => update('contact_phone', e.target.value)} placeholder="09…" /></Field>
         <Field label="Email (optional)"><input type="email" autoComplete="email" maxLength={254} value={values.email ?? ''} onChange={e => update('email', e.target.value)} /></Field>
         <Field label="Date of birth" hint="Optional. Age is calculated from this date."><DateInput max={today} value={values.date_of_birth} onChange={e => update('date_of_birth', e.target.value)} /></Field>

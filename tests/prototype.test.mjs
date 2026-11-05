@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { unzipSync, strFromU8 } from 'fflate';
-import { addMonths, currentMembership, endDate, localDate, membershipStatus } from '../src/prototype/domain.js';
+import { addMonths, currentMembership, endDate, findMembers, localDate, membershipStatus } from '../src/prototype/domain.js';
 import { createDemoData } from '../src/prototype/demoData.js';
 import { createPrototypeRepository, STORAGE_KEY, TABLE_NAMES } from '../src/prototype/repository.js';
 import { createPrototypeWorkbook, exportTables } from '../src/prototype/export.js';
@@ -138,12 +138,12 @@ test('attendance matrix includes non-visitors and reconciles presence and histor
   assert.equal(tables.find(t => t.name === 'Memberships').rows.length,eligible.length);
 });
 
-test('Excel export has seven worksheets, typed dates, filters and literal input text', () => {
+test('Excel export has eight worksheets, typed dates, filters and literal input text', () => {
   const data = createDemoData('2026-09-18', now);
   data.members[0].full_name = '=HYPERLINK("invalid") & <test>';
   const zip = unzipSync(createPrototypeWorkbook(data));
   const workbook = strFromU8(zip['xl/workbook.xml']);
-  assert.equal((workbook.match(/<sheet /g) || []).length, 7);
+  assert.equal((workbook.match(/<sheet /g) || []).length, 8);
   const members = strFromU8(zip['xl/worksheets/sheet2.xml']);
   assert.ok(members.includes('=HYPERLINK(&quot;invalid&quot;) &amp; &lt;test&gt;'));
   assert.ok(!members.includes('<f>'));
@@ -161,6 +161,28 @@ test('category codes use distinct sequences, retain former IDs and never reuse a
     const second = repository.saveMember({ ...newMember, category_id: category }).member;
     assert.notEqual(first.member_code, second.member_code);
   }
+});
+
+test('guest type survives edits, distinguishes guest students from paid students and clears on conversion', () => {
+  const {repository} = setup();
+  const guest = {...newMember, category_id:'guest', guest_type:'student'};
+  const saved = repository.saveMember(guest).member;
+  const legacy = repository.saveMember({...newMember,category_id:'guest'}).member;
+  repository.saveMember(newMember);
+  assert.match(saved.member_code, /^G/);
+  const search = type => findMembers(repository.getSnapshot(), '', 'guest', false, type).map(m => m.id);
+  assert.deepEqual(search('student'), [saved.id]);
+  assert.deepEqual(search('unrecorded'), [legacy.id]);
+  assert.equal(repository.saveMember({...newMember,category_id:'guest'},saved.id).member.guest_type,'student');
+  assert.equal(repository.saveMember({...guest,guest_type:'external'},saved.id).member.guest_type,'external');
+  assert.deepEqual(search('external'), [saved.id]);
+  for (const invalid of [{...guest,guest_type:'vip'},{...guest,guest_type:''},{...newMember,guest_type:'student'}]) {
+    assert.throws(() => repository.saveMember(invalid), /guest type/);
+  }
+  const converted = repository.saveMember({...newMember,membership:{package_id:'gym',plan_id:'plan-1',start_date:'2026-09-18'}},saved.id).member;
+  assert.equal(converted.guest_type, null);
+  assert.deepEqual(converted.previous_codes,[saved.member_code]);
+  assert.deepEqual(search('external'), []);
 });
 
 test('guest conversion is atomic and preserves person, code and attendance history', () => {

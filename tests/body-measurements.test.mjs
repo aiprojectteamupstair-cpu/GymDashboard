@@ -73,7 +73,7 @@ test('measurement export includes only recorded active rows in selected months a
   data.body_measurements=[{...base,id:'1',member_id:'a',measurement_month:'2026-10-01'},{...base,id:'2',member_id:'a',measurement_month:'2026-09-01'},{...base,id:'3',member_id:'b',measurement_month:'2026-10-01'},{...base,id:'4',member_id:'a',measurement_month:'2026-08-01',deleted_at:'2026-10-01'}];
   const scope={start:'2026-10-15',end:'2026-10-28',category:'customer'};
   const tables=exportTables(data,scope); const measurements=tables.find(table=>table.name==='Body measurements'); const rows=measurements.rows;
-  assert.equal(tables.length,7); assert.equal(rows.length,1); assert.equal(rows[0][0],'C001');
+  assert.equal(tables.length,8); assert.equal(rows.length,1); assert.equal(rows[0][0],'C001');
   assert.equal(rows[0][3],'10/2026'); assert.deepEqual(rows[0][7],{formula:'ROUND(F2/E2*100,2)',value:25});
   assert.equal(measurements.headers[4],'Weight (lb)');
   assert.equal(rows[0][4],kgToLb(80));

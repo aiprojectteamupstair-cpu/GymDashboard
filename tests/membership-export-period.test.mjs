@@ -99,3 +99,52 @@ test('saved XLSX has seven-column Members, literal text/leading zeros and only e
   assert.doesNotMatch(memberships,/expired-plan|future-plan|renew-irrelevant/);
   assert.match(memberships,/Status at period end/);
 });
+
+test('Sale selects each purchase by its own start, including standalone PT and memberships with unknown expiry', () => {
+  const data = fixture();
+  const renewal = data.memberships.find(row => row.id === 'renew-new');
+  Object.assign(renewal, { transaction_kind: 'Renew', voucher_reference: '00042' });
+  data.memberships.push({ id: 'first-day', member_id: 'renew', start_date: period.start, voucher_reference: '00042' });
+  data.training_purchases = [
+    { id: 'bundle', member_id: 'renew', membership_id: renewal.id, start_date: renewal.start_date, sessions: 10 },
+    { id: 'standalone', member_id: 'archived', start_date: period.end, sessions: 5, voucher_reference: '00019', record_origin: 'import' },
+    { id: 'old', member_id: 'renew', start_date: '2026-09-30', end_date: period.start },
+    { id: 'bad', member_id: 'renew', start_date: '2026-10-32', created_at: period.start },
+    { id: 'future', member_id: 'renew', start_date: '2026-11-01' },
+    { id: 'void', member_id: 'renew', start_date: period.end, voided_at: period.end },
+  ];
+  data.training_purchases.push(structuredClone(data.training_purchases[0]));
+  data.memberships.push(structuredClone(renewal));
+  const sales = sheet(exportTables(data, period), 'Sale');
+  assert.deepEqual(sales.rows.map(row => row.at(-1)), ['first-day','renew-new','bundle','standalone']);
+  assert.deepEqual(sales.rows.map(row => [row[0].date,row[1],row[5],row[8],row[10]]), [
+    [period.start,'Membership','','','00042'], [renewal.start_date,'Membership','Renew','','00042'],
+    [renewal.start_date,'PT','',10,'00042'], [period.end,'PT','',5,'00019'],
+  ]);
+  const saved = unzipSync(createPrototypeWorkbook(data, period));
+  const xml = strFromU8(saved['xl/worksheets/sheet8.xml']);
+  assert.match(xml, /autoFilter ref="A1:L5"/);
+  assert.match(xml, /<c r="A2" s="4"><v>\d+<\/v>/);
+  assert.match(xml, /<c r="K3" t="inlineStr"[^>]*>.*?00042/);
+  assert.doesNotMatch(strFromU8(saved['xl/worksheets/sheet5.xml']), /<v>NaN<\/v>/);
+  data.training_purchases.push({...data.training_purchases[0], sessions: 20});
+  assert.throws(() => exportTables(data, period), /conflicting copies/);
+});
+
+test('Sale respects historical category on linked PT, covers same-day periods and rejects broken links', () => {
+  const data = fixture();
+  data.members.find(row => row.id === 'three').category_id = 'student';
+  const day = '2028-02-29', scope = {start: day, end: day};
+  data.training_purchases = [
+    {id:'linked', member_id:'three', membership_id:'three-plan', start_date:day},
+    {id:'unlinked', member_id:'three', start_date:day},
+  ];
+  const ids = category => sheet(exportTables(data, {...scope, category}), 'Sale').rows.map(row => row.at(-1));
+  assert.deepEqual(ids('customer'), ['linked']);
+  assert.deepEqual(ids('student'), ['unlinked']);
+  assert.deepEqual(ids('guest'), []);
+  data.training_purchases[1].membership_id = 'missing';
+  assert.throws(() => ids('all'), /linked membership/);
+  data.training_purchases[1].membership_id = 'six-plan';
+  assert.throws(() => ids('all'), /another member/);
+});

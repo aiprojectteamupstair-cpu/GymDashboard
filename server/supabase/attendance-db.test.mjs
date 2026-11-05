@@ -23,9 +23,13 @@ test('calendar SQL: real schema, service-only Admin/Staff access, concurrency, r
       const sql=await readFile(new URL(`../../supabase/migrations/${file}`,import.meta.url),'utf8');
       await pool.query(sql.replace(/\b(anon|authenticated|service_role)\b/g,name=>roles[name]));
     }
+    const guestMigration=await readFile(new URL('../../supabase/migrations/20261105120341_guest_types.sql',import.meta.url),'utf8');
+    await pool.query(guestMigration.replace(/\b(anon|authenticated|service_role)\b/g,name=>roles[name]));
     const owner=crypto.randomUUID(),staff=crypto.randomUUID();
     await pool.query('INSERT INTO auth.users VALUES ($1),($2)',[owner,staff]);
     await pool.query("INSERT INTO public.app_staff(user_id,display_name,role_code,enabled) VALUES ($1,'Owner','super_admin',true),($2,'Reception','admin',true)",[owner,staff]);
+    const guestChecks=await readFile(new URL('../../supabase/tests/guest_types_rollback.sql',import.meta.url),'utf8');
+    await pool.query(guestChecks.replace(/\b(anon|authenticated|service_role)\b/g,name=>roles[name]));
     const member=(await pool.query("SELECT public.gym_command($1,$2,'member.save',$3) AS result",[owner,crypto.randomUUID(),{full_name:'Calendar fixture',category_id:'guest'}])).rows[0].result.member_id;
     const input=changes=>({member_id:member,reason:'Verified reception register',changes});
     const add={date:'2026-01-02',present:true,time:'09:15',expected:null};

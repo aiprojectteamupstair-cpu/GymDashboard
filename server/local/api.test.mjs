@@ -36,10 +36,12 @@ test('PostgreSQL local API: authentication, transactions, permissions, retries a
     const first=await request('workspace',undefined,cookie);
     assert.equal(first.body.data.members.length,0);
     const command=(name,payload,id=crypto.randomUUID(),session=cookie)=>request('gym-commands',{command:name,payload,request_id:id},session);
-    const id=crypto.randomUUID(),input={full_name:'Local Integration Guest',category_id:'guest',email:'local@example.test'};
+    const id=crypto.randomUUID(),input={full_name:'Local Integration Guest',category_id:'guest',email:'local@example.test',guest_type:'student'};
     const created=await command('member.save',input,id);
     assert.equal(created.status,200); const member=created.body.result.member;
     assert.equal(member.email,'local@example.test');
+    assert.equal(member.guest_type,'student');
+    assert.equal((await command('member.save',{...input,guest_type:'invalid'})).status,400);
     assert.equal((await command('member.save',input,id)).body.result.member.id,member.id);
     assert.equal((await command('member.save',{...input,full_name:'Changed'},id)).status,400);
     const checkins=await Promise.all([command('attendance.checkin',{id:member.id,acknowledged:true}),command('attendance.checkin',{id:member.id,acknowledged:true})]);

@@ -1,6 +1,19 @@
 # Project context and working rules
 
-Last updated: 2026-11-04. Business: The Community Fitness By Strategy First Gym.
+Last updated: 2026-11-05. Business: The Community Fitness By Strategy First Gym.
+
+## November 5 sales export and Guest types
+
+- Analytics Excel appends an eighth sheet, `Sale`. Each nonvoided membership
+  or PT purchase uses its own valid start date within the inclusive selected
+  period. Shared vouchers can appear on distinct purchase lines. Membership
+  overlap eligibility on the Members and Memberships sheets is independent.
+- Guest profiles support Student and External Guest. The new-profile form
+  requires a choice. Existing unclassified guests can be filled in on Edit
+  profile. Directory and Check-in can filter Guest profiles by type.
+- Migration `20261105120341_guest_types` is applied on the approved Supabase
+  project. Existing guests received no inferred classification. Production
+  frontend deployment is left to the user.
 
 ## November 4 period-eligible member exports
 

@@ -4,7 +4,7 @@ import { bodyFatPercent, kgToLb } from './bodyMeasurements.js';
 
 const xml = value => Array.from(String(value ?? '')).filter(char => char.codePointAt(0) >= 32 || ['\t', '\n', '\r'].includes(char)).join('').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;');
 const column = index => { let result = ''; for (let n = index + 1; n > 0; n = Math.floor((n - 1) / 26)) result = String.fromCharCode(65 + (n - 1) % 26) + result; return result; };
-const date = value => value ? { date: value } : '';
+const date = value => validDate(value) ? { date: value } : '';
 
 function uniqueRecords(rows, name) {
   const records=new Map();
@@ -15,6 +15,39 @@ function uniqueRecords(rows, name) {
     records.set(row.id,row);
   }
   return [...records.values()];
+}
+
+function saleSheet(data, memberMap, memberships, purchases, { start, end, matchesCategory }) {
+  const membershipMap = new Map(memberships.map(row => [row.id, row]));
+  const rows = [];
+  const included = row => !row.voided_at && validDate(row.start_date) &&
+    (!start || (row.start_date >= start && row.start_date <= end));
+
+  function add(record, type, membership, details) {
+    const person = memberMap.get(record.member_id);
+    const label = membership?.member_category_snapshot || (person && categoryLabel(data, person));
+    if (!matchesCategory(label)) return;
+    if (!person) throw new Error(`Cannot export sale ${record.id}: member profile is missing. Refresh and retry.`);
+    rows.push([date(record.start_date), type, person.member_code, person.full_name, label, ...details, record.id]);
+  }
+
+  for (const row of memberships.filter(included)) {
+    add(row, 'Membership', row, [row.transaction_kind || '', row.package_snapshot?.label || '',
+      row.plan_snapshot?.label || '', '', row.discount_snapshot?.label || '', row.voucher_reference || '']);
+  }
+  for (const row of purchases.filter(included)) {
+    const membership = membershipMap.get(row.membership_id);
+    if (row.membership_id && (!membership || membership.member_id !== row.member_id)) {
+      throw new Error(`Cannot export PT sale ${row.id}: its linked membership is missing or belongs to another member.`);
+    }
+    // A live add-on shares its parent purchase voucher. Imported standalone PT has its own source voucher.
+    const voucher = row.voucher_reference || (row.record_origin !== 'import' && membership?.voucher_reference) || '';
+    add(row, 'PT', membership, ['', '', '', row.sessions ?? '', '', voucher]);
+  }
+  rows.sort((a, b) => a[0].date.localeCompare(b[0].date) || a[2].localeCompare(b[2]) ||
+    a[1].localeCompare(b[1]) || a.at(-1).localeCompare(b.at(-1)));
+  return { name: 'Sale', headers: ['Start date', 'Sale type', 'Member ID', 'Name', 'Category', 'New / Renew',
+    'Package', 'Plan', 'PT sessions', 'Discount', 'Voucher No.', 'Record ID'], widths: [14, 14, 13, 26, 18, 14, 22, 14, 13, 19, 18, 40], rows };
 }
 
 function cell(value, row, col, style = 0) {
@@ -49,11 +82,14 @@ export function exportTables(data, { start = '', end = '', category = 'all' } = 
   const attendanceMemberIds = new Set(attendanceMembers.map(m=>m.id));
   const reviews=[];
   const normalizeCategory=value=>value==='Staff'?'Staff/Employee':value;
-  const memberships = uniqueRecords(data.memberships,'memberships').filter(m=>{
+  const allMemberships = uniqueRecords(data.memberships,'memberships');
+  const allTraining = uniqueRecords(data.training_purchases || [],'PT purchases');
+  const matchesCategory = label => category === 'all' || normalizeCategory(label) === normalizeCategory(selectedLabel);
+  const memberships = allMemberships.filter(m=>{
     if (m.voided_at) return false;
     const person=memberMap.get(m.member_id);
     const label=m.member_category_snapshot || (person && categoryLabel(data,person));
-    if (filtered ? category!=='all' && normalizeCategory(label)!==normalizeCategory(selectedLabel) : !attendanceMemberIds.has(m.member_id)) return false;
+    if (filtered ? !matchesCategory(label) : !attendanceMemberIds.has(m.member_id)) return false;
     if (filtered) {
       const from=m.start_date, through=endDate(m);
       if (validDate(from) && validDate(through) && from>through) {
@@ -71,7 +107,8 @@ export function exportTables(data, { start = '', end = '', category = 'all' } = 
   });
   const memberIds=new Set(memberships.map(m=>m.member_id));
   const members=filtered ? allMembers.filter(m=>memberIds.has(m.id)) : attendanceMembers;
-  const training = (data.training_purchases || []).filter(t => !t.voided_at && attendanceMemberIds.has(t.member_id));
+  const training = allTraining.filter(t => !t.voided_at && attendanceMemberIds.has(t.member_id));
+  const sales = saleSheet(data, memberMap, allMemberships, allTraining, { start, end, matchesCategory });
   const scope = filtered ? `Membership eligibility: ${formatDate(start)} to ${formatDate(end)} (Myanmar), inclusive. Members have at least one nonvoided membership overlapping this period; Memberships contains only those overlapping records.` : 'All members and history, including archived profiles.';
   const today = localDate();
   const statusDate=filtered ? end : today;
@@ -110,6 +147,7 @@ export function exportTables(data, { start = '', end = '', category = 'all' } = 
       ['Daily attendance', 'One row per Myanmar date in the selected period, respecting the attendance category filter. Each person counts once per day; voided visits are excluded. Category is the recorded category at visit, not the current profile. Staff and Staff/Employee are combined; missing categories appear as Not recorded. Zero means no matching recorded visits, not proof of absence. Daily totals sum the category counts.'],
       ['Membership selection', 'Start <= period end AND effective end >= period start. Includes earlier purchases, expiry within the period and currently archived profiles whose membership covered the period. Excludes voids, expired-before-period and starts-after-period. Category filter uses membership category snapshot, falling back to current member category only when missing.'],
       ['Record identity', 'Members has one row per stable member ID. Memberships has one row per saved membership ID; distinct renewals/packages for the same person remain separate. Names, phone numbers and shared vouchers never merge people or purchases.'],
+      ['Sale', `${sales.rows.length} purchase lines. Each membership and PT purchase uses its own recorded start date, including both period boundaries. Expiry and data-entry dates do not determine inclusion. Each row identifies one purchase. PT uses the linked membership category when available, otherwise the current member category. Unrecorded details are blank.`],
       ['Unconfirmed membership dates', `${reviews.length} records excluded from the selected-period member/membership population for date review. See review entries below; no missing dates were inferred.`],
       ['Other sheet populations', 'Attendance and Daily attendance retain recorded visits independently of paid membership, including guests. Training retains its existing history scope. Body measurements retains its monthly scope. Their populations need not equal the eligible Members sheet.'],
       ...reviews,
@@ -125,6 +163,7 @@ export function exportTables(data, { start = '', end = '', category = 'all' } = 
     { name: 'Body measurements', headers: ['Member ID','Name','Category','Month','Weight (lb)','Fat mass (lb)','Skeletal muscle (lb)','Body fat (%)'],
       rows:measurements.map((row,index)=>{const member=measurementMembers.get(row.member_id);return [member.member_code,member.full_name,categoryLabel(data,member),`${row.measurement_month.slice(5,7)}/${row.measurement_month.slice(0,4)}`,kgToLb(row.weight_kg),kgToLb(row.fat_mass_kg),kgToLb(row.skeletal_muscle_kg),{formula:`ROUND(F${index+2}/E${index+2}*100,2)`,value:bodyFatPercent(row.fat_mass_kg,row.weight_kg)}];}) },
     { name:'Daily attendance', headers:['Date','Total attendees',...dailyCategories], rows:dailyRows },
+    sales,
   ];
 }
 
@@ -174,8 +213,8 @@ export function createPrototypeWorkbook(data, scope) {
       '<row r="' + headerRow + '" ht="' + (['Daily attendance','Memberships'].includes(table.name) ? 42 : 32) + '" customHeight="1">' + table.headers.map((v,c)=>cell(matrix && c >= 3 ? Number(v.slice(8)) : v,headerRow,c,matrix && c >= 3 ? 8 : 1)).join('') + '</row>',
       ...table.rows.map((row,r)=>'<row r="' + (r + headerRow + 1) + '" ht="' + Math.max(28,...row.map(v=>Math.ceil(String(typeof v === 'object' ? '' : v ?? '').length/(table.name==='Read me'?90:38))*17)) + '" customHeight="1">' + row.map((v,c)=>cell(v,r+headerRow+1,c,matrix && c>=3 ? v===1 ? 5 : r%2 ? 6 : 7 : table.name==='Daily attendance' && c>=1 ? 15+(r%2 ? 0 : 1) : table.name==='Body measurements' && c>=4 ? (c===7 ? 13 : 11)+(r%2 ? 0 : 1) : r%2 ? 0 : 2)).join('') + '</row>')
     ];
-    const pane = matrix ? 'xSplit="3" ySplit="2" topLeftCell="D3" activePane="bottomRight"' : table.name==='Body measurements' ? 'xSplit="3" ySplit="1" topLeftCell="D2" activePane="bottomRight"' : table.name==='Daily attendance' ? 'xSplit="1" ySplit="1" topLeftCell="B2" activePane="bottomRight"' : 'ySplit="1" topLeftCell="A2" activePane="bottomLeft"';
-    const cols = table.headers.map((h,c)=>'<col min="' + (c+1) + '" max="' + (c+1) + '" width="' + (matrix && c>=3 ? 6 : table.name==='Read me' ? c===1 ? 100 : 30 : h==='Remark' ? 42 : h==='Name' ? 26 : h==='Package' ? 24 : /Category|Discount/.test(h) ? 22 : 18) + '" customWidth="1"/>').join('');
+    const pane = matrix ? 'xSplit="3" ySplit="2" topLeftCell="D3" activePane="bottomRight"' : ['Body measurements','Sale'].includes(table.name) ? 'xSplit="3" ySplit="1" topLeftCell="D2" activePane="bottomRight"' : table.name==='Daily attendance' ? 'xSplit="1" ySplit="1" topLeftCell="B2" activePane="bottomRight"' : 'ySplit="1" topLeftCell="A2" activePane="bottomLeft"';
+    const cols = table.headers.map((h,c)=>'<col min="' + (c+1) + '" max="' + (c+1) + '" width="' + (table.widths?.[c] ?? (matrix && c>=3 ? 6 : table.name==='Read me' ? c===1 ? 100 : 30 : h==='Remark' ? 42 : h==='Name' ? 26 : h==='Package' ? 24 : /Category|Discount/.test(h) ? 22 : 18)) + '" customWidth="1"/>').join('');
     add('xl/worksheets/sheet' + (i+1) + '.xml', '<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ' + pane + ' state="frozen"/></sheetView></sheetViews><cols>' + cols + '</cols><sheetData>' + rows.join('') + '</sheetData><autoFilter ref="A' + headerRow + ':' + column(table.headers.length-1) + (table.rows.length+headerRow) + '"/>' + (merges.length ? '<mergeCells count="' + merges.length + '">' + merges.map(ref=>'<mergeCell ref="' + ref + '"/>').join('') + '</mergeCells>' : '') + '</worksheet>');
   });
   return zipSync(files, { level: 6 });

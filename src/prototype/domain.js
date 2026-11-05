@@ -71,9 +71,10 @@ export function categoryLabel(data, member) {
   return data.member_categories.find(c => c.id === member?.category_id)?.label || 'Unknown';
 }
 
-export function findMembers(data, query = '', category = 'all', archived = false) {
+export function findMembers(data, query = '', category = 'all', archived = false, guestType = 'all') {
   const needle = query.trim().toLocaleLowerCase();
   return data.members.filter(m => Boolean(m.archived_at) === archived && (category === 'all' || m.category_id === category) &&
+    (category !== 'guest' || guestType === 'all' || (m.guest_type || 'unrecorded') === guestType) &&
     [m.full_name, m.member_code, m.contact_phone, m.student_id, ...(m.previous_codes || [])].some(v => (v || '').toLocaleLowerCase().includes(needle)));
 }
 

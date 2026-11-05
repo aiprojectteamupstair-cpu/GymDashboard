@@ -16,6 +16,10 @@ export const DISCOUNTS = [
   { id: 'student-50', label: 'Student 50%', percentage: 50, enabled: true },
 ];
 export const TRAINING_MONTHS = { 5: 1, 10: 1, 20: 2, 50: 5 };
+export const GUEST_TYPES = [
+  { id: 'student', label: 'Student' },
+  { id: 'external', label: 'External Guest' },
+];
 
 export function nextMemberCode(data, categoryId) {
   const category = CATEGORIES.find(c => c.id === categoryId);

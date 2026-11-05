@@ -27,7 +27,9 @@ test('live normalization preserves aliases and source expiry without inventing d
   assert.equal(endDate({ ...row, override_end_date: '2026-10-06' }), '2026-10-06');
   assert.equal(membershipStatus(row, '2026-10-01'), 'Active');
   assert.equal(membershipStatus({ ...row, start_date: null }, '2026-10-01'), 'Unknown');
-  assert.ok(Object.values(COLUMNS).every(columns => !columns.includes('source_reference')));
+  const provenanceSelections = Object.entries(COLUMNS).flatMap(([table, columns]) =>
+    columns.split(',').filter(field => field.includes('source_reference')).map(field => [table, field]));
+  assert.deepEqual(provenanceSelections, [['training_purchases','voucher_reference:source_reference->original->>"Voucher No."']]);
 });
 
 test('import timestamps do not create false New/Renew activity', () => {

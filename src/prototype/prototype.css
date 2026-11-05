@@ -201,7 +201,8 @@ select,.month-input { background: var(--surface); border: 1px solid var(--soft);
 .checkin-search-heading h2 { font-size: 19px; letter-spacing: -.5px; }
 .checkin-search-heading p { font-size: 14px; color: var(--muted); margin: 9px 0 21px; }
 .checkin-search-heading .search-field input { padding: 15px 0; font-size: 14px; }
-.search-results-heading { display: flex; align-items: center; justify-content: space-between; padding: 6px 25px 14px; border-bottom: 1px solid var(--soft); font-size: 12px; color: var(--muted); }
+.search-results-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 25px 14px; border-bottom: 1px solid var(--soft); font-size: 12px; color: var(--muted); }
+.search-results-heading > span { margin-right: auto; }
 .checkin-results { padding: 0 25px; }
 .checkin-result { display: flex; align-items: center; gap: 13px; padding: 18px 0; border-bottom: 1px solid var(--soft); }
 .checkin-result:last-child { border-bottom: 0; }
