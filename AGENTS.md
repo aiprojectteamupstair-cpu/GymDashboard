@@ -1,6 +1,38 @@
 # Project context and working rules
 
-Last updated: 2026-11-05. Business: The Community Fitness By Strategy First Gym.
+Last updated: 2026-11-06. Business: The Community Fitness By Strategy First Gym.
+
+## November 6 final-source replacement — committed with holds
+
+- The corrected Members_Updated.xlsx / Monthly_Attendance_Final.xlsx supersede
+  older import sources and append-only rules within the approved pre-November
+  scope. See [result and verification](docs/FINAL_WORKBOOK_IMPORT_2026_11_06.md).
+- Approved project snbfdktwrgzhwjqmyhdz, batch final-20261106-72f7cd03-bd2b1e16:
+  committed 21:20:29 Myanmar time. Verified 483 source identities; 9 new profiles,
+  474 updated, 23 archived; memberships 175 new/469 updated/142 archived; PT 22
+  updated; attendance 333 new/6805 updated/77 archived. All old values recoverable.
+- NOT COMPLETE: 37 source identity/code holds, 27 Member_Info holds, 57 source
+  visit-days held. 38 verified UUIDs retain different live readable IDs. Do not
+  steal reserved IDs, merge guessed people, or treat replay as approval of holds.
+- Source attendance controls 1165/2155/2125/1750 = 7195; currently active
+  1165/2150/2124/1716 = 7155. This includes 17 unresolved live October days;
+  confirmed applied source days total 7138. Inferred applied 209 of 210.
+- November-and-later 30 visits and 31 memberships are byte-value/semantic-row
+  unchanged including UUIDs, ownership, timestamps, voids and relationships.
+  Source November visits/purchases excluded. Auth/settings/catalogues unchanged.
+- Owner-only tcf_import staging/archive migration 20261106143947 is applied.
+  Backup restored in isolated PostgreSQL; exact import/replay/inverse recovery
+  verified and local trial rolled back. Live 8538 staged after-rows match;
+  duplicate member/date and orphans zero; live replay adds zero rows/audits.
+- Private files, reports, review CSVs and verified ZIP live in ignored
+  .private-imports/final-2026-11-06-v2/. Never use the superseded wrong-file folder.
+  Do not publish personal data or expose the private schema.
+- Day Pass/legacy/balance/unknown-type history is structured in members source
+  metadata with exact types and stable IDs; UI projects and displays this history.
+  Archived memberships no longer appear as active profile history. 119 tests,
+  lint and production build pass. Frontend deployment remains with the user.
+- Hosted authenticated browser verification was unavailable. User subsequently
+  confirmed Supabase data is the priority; no further browser/login action needed.
 
 ## November 5 sales export and Guest types
 
